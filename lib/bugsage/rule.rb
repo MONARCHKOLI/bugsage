@@ -6,7 +6,7 @@ module Bugsage
 
       Suggestion.new(
         issue: "NoMethodError",
-        location: exception.backtrace&.first || "unknown",
+        location: TraceCleaner.first_application_frame(exception.backtrace) || exception.backtrace&.first || "unknown",
         root_cause: "Called a method on a nil object",
         fixes: ["Check object initialization", "Add nil guard", "Verify authentication"],
         confidence: 95
