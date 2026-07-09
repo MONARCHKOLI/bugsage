@@ -9,13 +9,15 @@ Gem::Specification.new do |spec|
   spec.email = ["monarchkoli12@gmail.com"]
 
   spec.summary = "AI-powered debugging assistant for Ruby on Rails"
-  spec.description = "BugSage watches your Rails application's logs and exceptions, " \
-                    "classifies errors, and suggests likely root causes and fixes — " \
-                    "using deterministic rules first, with optional AI-powered analysis."
+  spec.description = [
+    "BugSage watches your Rails application's logs and exceptions,",
+    "classifies errors, and suggests likely root causes and fixes —",
+    "using deterministic rules first, with optional AI-powered analysis."
+  ].join(" ")
   spec.homepage = "https://github.com/MONARCHKOLI/bugsage"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
-  spec.metadata["allowed_push_host"] =  "https://rubygems.org"
+  spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
@@ -39,8 +41,8 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "thor", "~> 1.3"
   spec.add_dependency "pastel", "~> 0.8"
+  spec.add_dependency "thor", "~> 1.3"
 
   # Uncomment to register a new dependency of your gem
   # spec.add_dependency "example-gem", "~> 1.0"

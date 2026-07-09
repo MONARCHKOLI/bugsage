@@ -5,12 +5,77 @@ unless defined?(ActionController::RoutingError)
     class RoutingError < StandardError; end
     class ParameterMissing < StandardError; end
     class UnpermittedParameters < StandardError; end
+    class BadRequest < StandardError; end
+    class InvalidAuthenticityToken < StandardError; end
+    class MissingExactTemplate < StandardError; end
+    class UnknownFormat < StandardError; end
+    class InvalidCrossOriginRequest < StandardError; end
+  end
+end
+
+unless defined?(ActionDispatch::Http::Parameters::ParseError)
+  module ActionDispatch
+    module Http
+      module Parameters
+        class ParseError < StandardError; end
+      end
+    end
+  end
+end
+
+unless defined?(ActionView::Template::Error)
+  module ActionView
+    module Template
+      class Error < StandardError; end
+    end
+  end
+end
+
+unless defined?(ActionDispatch::Flash::FlashError)
+  module ActionDispatch
+    module Flash
+      class FlashError < StandardError; end
+    end
+  end
+end
+
+unless defined?(ActiveJob::DeserializationError)
+  module ActiveJob
+    class DeserializationError < StandardError; end
   end
 end
 
 unless defined?(ActiveRecord::RecordInvalid)
   module ActiveRecord
     class RecordInvalid < StandardError; end
+    class RecordNotFound < StandardError; end
+  end
+end
+
+unless defined?(ActiveStorage::FileNotFoundError)
+  module ActiveStorage
+    class FileNotFoundError < StandardError; end
+    class IntegrityError < StandardError; end
+  end
+end
+
+unless defined?(Redis::BaseError)
+  module Redis
+    class BaseError < StandardError; end
+  end
+end
+
+unless defined?(ActiveSupport::MessageVerifier::InvalidSignature)
+  module ActiveSupport
+    module MessageVerifier
+      class InvalidSignature < StandardError; end
+    end
+  end
+end
+
+unless defined?(Faraday::Error)
+  module Faraday
+    class Error < StandardError; end
   end
 end
 
@@ -68,6 +133,156 @@ RSpec.describe Bugsage do
       expect(suggestion.issue).to eq("ActiveRecord::RecordInvalid")
       expect(suggestion.root_cause).to include("Validation failed")
       expect(suggestion.fixes).to include("Check model validations and required attributes")
+    end
+
+    it "matches bad request errors" do
+      exception = ActionController::BadRequest.new("Invalid request parameters")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActionController::BadRequest")
+      expect(suggestion.root_cause).to include("Invalid request")
+      expect(suggestion.fixes).to include("Verify the request payload and expected format")
+    end
+
+    it "matches invalid authenticity token errors" do
+      exception = ActionController::InvalidAuthenticityToken.new("Can't verify CSRF token authenticity")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActionController::InvalidAuthenticityToken")
+      expect(suggestion.root_cause).to include("CSRF")
+      expect(suggestion.fixes).to include("Ensure the form includes the CSRF token")
+    end
+
+    it "matches request parsing errors" do
+      exception = ActionDispatch::Http::Parameters::ParseError.new("Unexpected character")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActionDispatch::Http::Parameters::ParseError")
+      expect(suggestion.root_cause).to include("Unexpected character")
+      expect(suggestion.fixes).to include("Verify the request body format and encoding")
+    end
+
+    it "matches background job deserialization errors" do
+      exception = ActiveJob::DeserializationError.new("Failed to deserialize job")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActiveJob::DeserializationError")
+      expect(suggestion.root_cause).to include("deserialize")
+      expect(suggestion.fixes).to include("Check job payload compatibility and serializer setup")
+    end
+
+    it "matches template rendering errors" do
+      exception = ActionView::Template::Error.new("Missing template")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActionView::Template::Error")
+      expect(suggestion.root_cause).to include("Missing template")
+      expect(suggestion.fixes).to include("Verify the template name and format")
+    end
+
+    it "matches missing exact template errors" do
+      exception = ActionController::MissingExactTemplate.new("Missing template for this request")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActionController::MissingExactTemplate")
+      expect(suggestion.root_cause).to include("Missing template")
+      expect(suggestion.fixes).to include("Add the expected template for the requested format")
+    end
+
+    it "matches missing record errors" do
+      exception = ActiveRecord::RecordNotFound.new("Couldn't find Post with id=99")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActiveRecord::RecordNotFound")
+      expect(suggestion.root_cause).to include("Couldn't find Post")
+      expect(suggestion.fixes).to include("Verify the record ID exists before querying")
+    end
+
+    it "matches active storage file errors" do
+      exception = ActiveStorage::FileNotFoundError.new("File not found")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActiveStorage::FileNotFoundError")
+      expect(suggestion.root_cause).to include("File not found")
+      expect(suggestion.fixes).to include("Verify the storage object exists and the key is correct")
+    end
+
+    it "matches redis connection errors" do
+      exception = Redis::BaseError.new("Connection refused")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("Redis::BaseError")
+      expect(suggestion.root_cause).to include("Connection refused")
+      expect(suggestion.fixes).to include("Verify the Redis connection settings and service availability")
+    end
+
+    it "matches faraday transport errors" do
+      exception = Faraday::Error.new("Connection failed")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("Faraday::Error")
+      expect(suggestion.root_cause).to include("Connection failed")
+      expect(suggestion.fixes).to include("Inspect the upstream service and network connectivity")
+    end
+
+    it "matches unknown format errors" do
+      exception = ActionController::UnknownFormat.new("HTML format is not supported")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActionController::UnknownFormat")
+      expect(suggestion.root_cause).to include("HTML format")
+      expect(suggestion.fixes).to include("Check the requested format and respond with a supported one")
+    end
+
+    it "matches invalid cross-origin request errors" do
+      exception = ActionController::InvalidCrossOriginRequest.new("Security warning")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActionController::InvalidCrossOriginRequest")
+      expect(suggestion.root_cause).to include("Security warning")
+      expect(suggestion.fixes).to include("Verify the CORS configuration and request origin")
+    end
+
+    it "matches flash errors" do
+      exception = ActionDispatch::Flash::FlashError.new("Flash not available")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActionDispatch::Flash::FlashError")
+      expect(suggestion.root_cause).to include("Flash not available")
+      expect(suggestion.fixes).to include("Check flash usage and session persistence")
+    end
+
+    it "matches invalid signed message errors" do
+      exception = ActiveSupport::MessageVerifier::InvalidSignature.new("Signature verification failed")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActiveSupport::MessageVerifier::InvalidSignature")
+      expect(suggestion.root_cause).to include("Signature verification")
+      expect(suggestion.fixes).to include("Verify the signed payload and secret rotation")
+    end
+
+    it "matches active storage integrity errors" do
+      exception = ActiveStorage::IntegrityError.new("Checksum mismatch")
+
+      suggestion = described_class.match(exception)
+
+      expect(suggestion.issue).to eq("ActiveStorage::IntegrityError")
+      expect(suggestion.root_cause).to include("Checksum mismatch")
+      expect(suggestion.fixes).to include("Validate uploaded content and storage integrity")
     end
   end
 

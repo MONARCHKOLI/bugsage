@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "bugsage/version"
 require_relative "bugsage/suggestion"
 require_relative "bugsage/trace_cleaner"

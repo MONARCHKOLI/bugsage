@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Bugsage
   class ExceptionsApp
     def call(env)
