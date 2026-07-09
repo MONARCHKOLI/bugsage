@@ -1,44 +1,109 @@
-# Bugsage
+# BugSage
 
-TODO: Delete this and the text below, and describe your gem
+BugSage is a Ruby gem for Ruby on Rails applications that helps developers understand exceptions faster. Instead of showing only a raw stack trace, BugSage classifies the error, explains the likely root cause, and suggests actionable fixes.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/bugsage`. To experiment with that code, run `bin/console` for an interactive prompt.
+It is designed to work as a lightweight debugging companion for development environments and can be used with Rails middleware to render a friendly, informative error page.
+
+## What BugSage does
+
+- Catches common Rails and Ruby exceptions
+- Classifies them into likely issue categories
+- Surfaces the root cause in a simple report
+- Suggests practical next steps
+- Displays Rails request context such as path, method, controller, action, and parameters
+
+## Supported error handling
+
+The current version handles common Ruby and Rails exceptions, including:
+
+### Ruby exceptions
+- `NoMethodError`
+- `NameError`
+- `ArgumentError`
+- `TypeError`
+- `RuntimeError`
+- `StandardError`
+
+### Rails / Active Record exceptions
+- `ActionController::RoutingError`
+- `ActionController::ParameterMissing`
+- `ActionController::UnpermittedParameters`
+- `ActiveRecord::RecordNotFound`
+- `ActiveRecord::RecordInvalid`
+
+### Generic fallback
+- Any other exception inheriting from `StandardError` is also handled with a generic BugSage suggestion.
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+Add this line to your application's Gemfile:
 
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```ruby
+gem 'bugsage'
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+And then execute:
 
 ```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+bundle install
 ```
 
 ## Usage
 
-TODO: Write usage instructions here
+BugSage can be used by mounting the middleware in your Rails app or by requiring it in your development environment. When an exception is caught, BugSage renders a helpful page with:
+
+- the exception name
+- the location
+- the message
+- a suggested fix
+- confidence score
+- Rails request context
+
+## How and where to check the logs
+
+When BugSage catches an exception, you can inspect the information in the browser error page and in your local Rails logs.
+
+### Common places to check
+
+- Rails development log:
+  - `log/development.log`
+- Rails test log:
+  - `log/test.log`
+- Terminal output where you started the Rails server
+
+### Typical steps
+
+1. Start your Rails app locally.
+2. Trigger the error in the browser or via a request.
+3. Open the BugSage error page that appears for the exception.
+4. Check your Rails log output in the terminal or in `log/development.log` for the full exception details.
+5. If you want to inspect the captured event history, open the BugSage dashboard or review the in-memory store while the app is running.
+
+## Rails application changes needed
+
+To use BugSage in a Rails application, you usually need to make a few small application-side changes:
+
+1. Add the gem to your Gemfile and install it.
+2. Ensure the middleware is enabled in your Rails environment so exceptions are intercepted.
+3. Make sure your app is running in development or test mode to see the BugSage error page.
+4. If you want to inspect full request context, keep the standard Rails request data available in the Rack environment (path, params, request ID, host, and user agent).
+5. If you want to see the error page in a browser, trigger an exception through a controller action or route.
+
+In most cases, no major Rails code changes are required beyond installing the gem and enabling the middleware in your environment.
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run:
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```bash
+bundle install
+bundle exec rspec
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/bugsage. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/bugsage/blob/master/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome.
 
 ## License
 
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the Bugsage project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/bugsage/blob/master/CODE_OF_CONDUCT.md).
-# bugsage
