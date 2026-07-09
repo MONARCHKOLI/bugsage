@@ -2,36 +2,102 @@
 
 module Bugsage
   class Middleware
+    CASCADE_HEADER = "X-Cascade"
+
     def initialize(app)
       @app = app
     end
 
     def call(env)
-      return render_dashboard if env["PATH_INFO"] == "/bugsage"
+      return handle_dashboard(env) if dashboard_request?(env)
+      return @app.call(env) unless Bugsage.configuration.enabled?
 
-      @app.call(env)
+      status, headers, body = @app.call(env)
+      close_body(body)
+
+      return pass_through(status, headers, body) if bugsage_response?(body)
+
+      rendered = capture_routing_error(env, headers)
+      return rendered if rendered
+
+      rendered = capture_exception(env)
+      return rendered if rendered
+
+      [status, headers, body]
     rescue StandardError => e
-      suggestion = Rule.match(e)
+      result = capture_exception(env, e)
+      return result if result.is_a?(Array)
 
-      if suggestion
-        context = rails_context(env)
-        Store.add(suggestion, context)
-        render_error_page(suggestion, context)
-      elsif env["action_dispatch.exception"]
-        ExceptionsApp.new.call(env)
-      else
-        raise e
-      end
+      raise e
     end
 
     private
 
-    def render_dashboard
-      [200, { "Content-Type" => "text/html" }, [Dashboard.render(Store.all)]]
+    def handle_dashboard(env)
+      if Bugsage.configuration.show_dashboard?
+        render_dashboard
+      else
+        @app.call(env)
+      end
     end
 
-    def render_error_page(suggestion, context = {})
-      [500, { "Content-Type" => "text/html" }, [ErrorPage.render(suggestion, context)]]
+    def dashboard_request?(env)
+      path = env["PATH_INFO"].to_s
+      path == "/bugsage" || path == "/bugsage/"
+    end
+
+    def capture_routing_error(env, headers)
+      return unless cascade_pass?(headers)
+
+      exception = routing_error_for(env)
+      capture_exception(env, exception)
+    end
+
+    def routing_error_for(env)
+      if defined?(ActionController::RoutingError)
+        ActionController::RoutingError.new(
+          "No route matches [#{env['REQUEST_METHOD']}] #{env['PATH_INFO'].inspect}"
+        )
+      else
+        StandardError.new(
+          "No route matches [#{env['REQUEST_METHOD']}] #{env['PATH_INFO'].inspect}"
+        )
+      end
+    end
+
+    def cascade_pass?(headers)
+      headers[CASCADE_HEADER] == "pass" ||
+        (defined?(ActionDispatch::Constants) && headers[ActionDispatch::Constants::X_CASCADE] == "pass")
+    end
+
+    def close_body(body)
+      body.close if body.respond_to?(:close)
+    end
+
+    def capture_exception(env, exception = nil)
+      config = Bugsage.configuration
+      return unless config.enabled?
+
+      if config.show_error_page?
+        return ExceptionHandler.render_response(env, exception)
+      end
+
+      if config.capture_errors?
+        ExceptionHandler.store_exception(env, exception)
+        :stored
+      end
+    end
+
+    def bugsage_response?(body)
+      ExceptionHandler.bugsage_response?(body)
+    end
+
+    def pass_through(status, headers, body)
+      [status, headers, body]
+    end
+
+    def render_dashboard
+      [200, { "Content-Type" => "text/html" }, [Dashboard.render(Store.all)]]
     end
 
     def rails_context(env)

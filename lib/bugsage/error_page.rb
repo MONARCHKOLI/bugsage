@@ -6,8 +6,8 @@ require "json"
 module Bugsage
   class ErrorPage
     def self.render(suggestion, context = {})
-      file_path, line_number = extract_location(suggestion.location)
-      code_context = render_code_context(file_path, line_number)
+      file_path, line_number = CodeContext.extract_location(suggestion.location)
+      code_context = CodeContext.render_code_context(file_path, line_number)
 
       <<~HTML
         <!DOCTYPE html>
@@ -170,17 +170,17 @@ module Bugsage
         </head>
         <body>
           <div class="container">
-            <h1>🐛 #{escape_html(suggestion.issue)}</h1>
+            <h1>🐛 BugSage caught: #{CodeContext.escape_html(suggestion.issue)}</h1>
 
             <div class="header-info">
-              <p><strong>Location:</strong> #{escape_html(suggestion.location)}</p>
+              <p><strong>Location:</strong> #{CodeContext.escape_html(suggestion.location)}</p>
             </div>
 
             #{code_context}
 
             <div class="message-box">
               <strong>Error Message:</strong><br>
-              #{escape_html(suggestion.root_cause)}
+              #{CodeContext.escape_html(suggestion.root_cause)}
             </div>
 
             #{render_request_context(context)}
@@ -189,7 +189,7 @@ module Bugsage
               <div class="section">
                 <div class="label">Suggested Fixes</div>
                 <ul class="fixes">
-                  #{suggestion.fixes.map { |f| "<li>#{escape_html(f)}</li>" }.join}
+                  #{suggestion.fixes.map { |f| "<li>#{CodeContext.escape_html(f)}</li>" }.join}
                 </ul>
               </div>
               <div class="section">
@@ -209,8 +209,8 @@ module Bugsage
       return "" if context.empty?
 
       rows = context.map do |label, value|
-        "<div class=\"section\"><div class=\"label\">#{escape_html(label)}</div>" \
-          "<div class=\"value\">#{escape_html(format_value(value))}</div></div>"
+        "<div class=\"section\"><div class=\"label\">#{CodeContext.escape_html(label)}</div>" \
+          "<div class=\"value\">#{CodeContext.escape_html(format_value(value))}</div></div>"
       end.join
 
       "<div class=\"section\"><div class=\"label\">Rails Request Context</div>#{rows}</div>"
@@ -225,77 +225,6 @@ module Bugsage
       else
         value.to_s
       end
-    end
-
-    def self.source_excerpt(suggestion)
-      return "No source excerpt available" unless suggestion.location
-
-      line = suggestion.location[/:(\d+)/, 1]
-      return suggestion.location unless line
-
-      "Line #{line} in #{suggestion.location.split(":").first}"
-    end
-
-    def self.source_excerpt(suggestion)
-      return "No source excerpt available" unless suggestion.location
-
-      line = suggestion.location[/:(\d+)/, 1]
-      return suggestion.location unless line
-
-      "Line #{line} in #{suggestion.location.split(":").first}"
-    end
-
-    def self.extract_location(location)
-      return [nil, nil] unless location
-
-      match = location.match(/^(.+):(\d+)/)
-      return [match[1], match[2].to_i] if match
-
-      [location, nil]
-    end
-
-    def self.render_code_context(file_path, line_number)
-      return "" unless file_path && line_number
-
-      lines = read_file_lines(file_path)
-      return "" unless lines
-
-      context_range = 5
-      start_line = [line_number - context_range, 1].max
-      end_line = [line_number + context_range, lines.length].min
-
-      code_html = ""
-      (start_line..end_line).each do |num|
-        is_error_line = num == line_number
-        line_content = lines[num - 1] || ""
-        error_class = is_error_line ? " error" : ""
-
-        code_html += "<div class=\"code-line#{error_class}\">"
-        code_html += "<div class=\"code-line-number\">#{num}</div>"
-        code_html += "<div class=\"code-line-content\">#{escape_html(line_content)}</div>"
-        code_html += "</div>"
-      end
-
-      <<~HTML
-        <div class="code-section">
-          <div class="code-header">#{escape_html(file_path)}</div>
-          <div class="code-block">
-            #{code_html}
-          </div>
-        </div>
-      HTML
-    end
-
-    def self.read_file_lines(file_path)
-      return nil unless file_path && File.exist?(file_path)
-
-      File.readlines(file_path)
-    rescue StandardError
-      nil
-    end
-
-    def self.escape_html(value)
-      CGI.escapeHTML(value.to_s)
     end
   end
 end

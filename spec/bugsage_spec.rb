@@ -47,8 +47,21 @@ end
 
 unless defined?(ActiveRecord::RecordInvalid)
   module ActiveRecord
-    class RecordInvalid < StandardError; end
-    class RecordNotFound < StandardError; end
+    class ActiveRecordError < StandardError; end
+    class RecordInvalid < ActiveRecordError; end
+    class RecordNotFound < ActiveRecordError; end
+    class StatementInvalid < ActiveRecordError; end
+    class RecordNotUnique < StatementInvalid; end
+    class NotNullViolation < StatementInvalid; end
+    class ConnectionNotEstablished < ActiveRecordError; end
+    class StaleObjectError < ActiveRecordError; end
+  end
+end
+
+unless defined?(PG::Error)
+  module PG
+    class Error < StandardError; end
+    class UniqueViolation < Error; end
   end
 end
 
@@ -287,6 +300,14 @@ RSpec.describe Bugsage do
   end
 
   describe Bugsage::ExceptionsApp do
+    before do
+      ENV["RAILS_ENV"] = "development"
+      Bugsage.configure do |config|
+        config.show_error_page = true
+        config.capture_errors = true
+      end
+    end
+
     it "renders a BugSage page for Rails exceptions" do
       exception = NoMethodError.new("undefined method `each' for class User")
       env = {
@@ -306,9 +327,105 @@ RSpec.describe Bugsage do
       expect(html).to include("NoMethodError")
       expect(html).to include("Rails Request Context")
     end
+
+    it "renders a BugSage page for routing errors with a 404 status" do
+      exception = ActionController::RoutingError.new('No route matches [GET] "/us"')
+      env = {
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/us",
+        "action_dispatch.exception" => exception,
+        "HTTP_HOST" => "example.test"
+      }
+
+      Bugsage::Store.clear!
+      status, _headers, body = described_class.call(env)
+      html = body.join
+
+      expect(status).to eq(404)
+      expect(html).to include("ActionController::RoutingError")
+      expect(html).to include("/us")
+      expect(Bugsage::Store.all.first[:issue]).to eq("ActionController::RoutingError")
+    end
+  end
+
+  describe Bugsage::Dashboard do
+    let(:event) do
+      {
+        issue: "NoMethodError",
+        location: "#{__FILE__}:1",
+        root_cause: "undefined method `foo'",
+        fixes: ["Check object initialization"],
+        confidence: 95,
+        context: { "Path" => "/posts", "Request method" => "POST" },
+        timestamp: "2026-07-09T12:00:00Z"
+      }
+    end
+
+    it "renders a split layout with a bug list and detail panel" do
+      html = described_class.render([event])
+
+      expect(html).to include("BugSage")
+      expect(html).to include('class="sidebar"')
+      expect(html).to include('class="detail-panel"')
+      expect(html).to include('class="bug-item active"')
+      expect(html).to include('id="bug-0"')
+      expect(html).to include("Suggested fixes")
+      expect(html).to include("Rails request context")
+      expect(html).to include("code-line error")
+      expect(html).to include("/posts")
+      expect(html).to include("data-bug-id=\"bug-0\"")
+    end
+  end
+
+  describe Bugsage::Configuration do
+    it "enables BugSage in development and test by default" do
+      config = described_class.new
+
+      expect(config.enabled?("development")).to be true
+      expect(config.enabled?("test")).to be true
+      expect(config.enabled?("production")).to be false
+    end
+
+    it "shows the error page only in development by default" do
+      config = described_class.new
+
+      expect(config.show_error_page?("development")).to be true
+      expect(config.show_error_page?("test")).to be false
+      expect(config.show_error_page?("production")).to be false
+    end
+
+    it "shows the dashboard only in development by default" do
+      config = described_class.new
+
+      expect(config.show_dashboard?("development")).to be true
+      expect(config.show_dashboard?("test")).to be false
+    end
+
+    it "allows custom configuration through Bugsage.configure" do
+      Bugsage.configure do |config|
+        config.enabled_environments = %i[development production]
+        config.show_error_page = true
+        config.ai_enabled = true
+      end
+
+      expect(Bugsage.configuration.enabled?("production")).to be true
+      expect(Bugsage.configuration.show_error_page?("production")).to be true
+      expect(Bugsage.configuration.ai_enabled?("production")).to be true
+    end
   end
 
   describe Bugsage::Middleware do
+    around do |example|
+      original = ENV.fetch("RAILS_ENV", nil)
+      ENV["RAILS_ENV"] = "development"
+      example.run
+    ensure
+      if original
+        ENV["RAILS_ENV"] = original
+      else
+        ENV.delete("RAILS_ENV")
+      end
+    end
     let(:app) do
       lambda do |_env|
         raise NoMethodError, "undefined method `foo' for nil:NilClass"
@@ -342,6 +459,148 @@ RSpec.describe Bugsage do
       expect(html).to include("posts")
       expect(html).to include("create")
       expect(html).to include("Hello")
+    end
+
+    it "captures routing errors handled internally by Rails" do
+      rails_app = lambda do |inner_env|
+        inner_env["action_dispatch.exception"] =
+          ActionController::RoutingError.new('No route matches [GET] "/abchac"')
+        [404, { "Content-Type" => "text/html" }, ["Rails routing error page"]]
+      end
+
+      routing_env = {
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/abchac",
+        "HTTP_HOST" => "example.test"
+      }
+
+      Bugsage::Store.clear!
+      response = described_class.new(rails_app).call(routing_env)
+      html = response[2].join
+
+      expect(response[0]).to eq(404)
+      expect(html).to include("BugSage caught")
+      expect(html).to include("ActionController::RoutingError")
+      expect(html).to include("No route matches [GET]")
+      expect(html).to include("/abchac")
+      expect(Bugsage::Store.all.first[:issue]).to eq("ActionController::RoutingError")
+    end
+
+    it "captures routing errors returned with X-Cascade pass" do
+      rails_app = ->(_env) { [404, { "X-Cascade" => "pass" }, []] }
+      routing_env = {
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/us",
+        "HTTP_HOST" => "example.test"
+      }
+
+      Bugsage::Store.clear!
+      response = described_class.new(rails_app).call(routing_env)
+      html = response[2].join
+
+      expect(response[0]).to eq(404)
+      expect(html).to include("BugSage caught")
+      expect(Bugsage::Store.all.first[:issue]).to eq("ActionController::RoutingError")
+    end
+
+    it "stores errors without rendering the error page in test mode" do
+      ENV["RAILS_ENV"] = "test"
+
+      Bugsage.configure do |config|
+        config.enabled_environments = %i[test]
+        config.show_error_page = false
+        config.show_dashboard = false
+        config.capture_errors = true
+      end
+
+      app = ->(_env) { raise NoMethodError, "undefined method `foo' for nil:NilClass" }
+
+      Bugsage::Store.clear!
+      expect do
+        described_class.new(app).call(
+          "REQUEST_METHOD" => "GET",
+          "PATH_INFO" => "/posts",
+          "HTTP_HOST" => "example.test"
+        )
+      end.to raise_error(NoMethodError)
+
+      expect(Bugsage::Store.all.first[:issue]).to eq("NoMethodError")
+    end
+  end
+
+  describe "integration capture" do
+    before do
+      ENV["RAILS_ENV"] = "development"
+      Bugsage.configure do |config|
+        config.show_error_page = true
+        config.show_dashboard = true
+        config.capture_errors = true
+      end
+    end
+
+    ExceptionScenarios::SCENARIOS.each do |scenario|
+      it "matches and stores #{scenario[:name]} through ExceptionsApp" do
+        exception = scenario[:exception].call
+        env = {
+          "REQUEST_METHOD" => "GET",
+          "PATH_INFO" => "/bugsage-test",
+          "HTTP_HOST" => "example.test",
+          "action_dispatch.exception" => exception
+        }
+
+        Bugsage::Store.clear!
+        status, _headers, body = Bugsage::ExceptionsApp.call(env)
+        html = body.join
+
+        expect(status).to eq(scenario[:status])
+        expect(html).to include("BugSage caught")
+        expect(html).to include(scenario[:issue])
+        expect(Bugsage::Store.all.length).to eq(1)
+        expect(Bugsage::Store.all.first[:issue]).to eq(scenario[:issue])
+      end
+
+      it "matches #{scenario[:name]} through Middleware rescue path" do
+        exception = scenario[:exception].call
+        app = ->(_env) { raise exception }
+
+        Bugsage::Store.clear!
+        status, _headers, body = Bugsage::Middleware.new(app).call(
+          "REQUEST_METHOD" => "GET",
+          "PATH_INFO" => "/bugsage-test",
+          "HTTP_HOST" => "example.test"
+        )
+        html = body.join
+
+        expect(status).to eq(scenario[:status])
+        expect(html).to include("BugSage caught")
+        expect(Bugsage::Store.all.first[:issue]).to eq(scenario[:issue])
+      end
+    end
+
+    it "unwraps Rails-style exception wrappers before matching" do
+      inner = ActionController::RoutingError.new('No route matches [GET] "/wrapped"')
+      wrapper = Class.new do
+        def initialize(exception)
+          @exception = exception
+        end
+
+        def unwrapped_exception
+          @exception
+        end
+      end.new(inner)
+
+      env = {
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/wrapped",
+        "action_dispatch.exception" => wrapper
+      }
+
+      Bugsage::Store.clear!
+      status, _headers, body = Bugsage::ExceptionsApp.call(env)
+
+      expect(status).to eq(404)
+      expect(Bugsage::Store.all.first[:issue]).to eq("ActionController::RoutingError")
+      expect(body.join).to include("BugSage caught")
     end
   end
 end
