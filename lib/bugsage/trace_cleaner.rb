@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 module Bugsage
   class TraceCleaner
     FRAMEWORK_PATTERNS = [
       %r{/gems/},
-      %r{/ruby/\d},
+      %r{/ruby/\d}
     ].freeze
 
     def self.clean(backtrace)

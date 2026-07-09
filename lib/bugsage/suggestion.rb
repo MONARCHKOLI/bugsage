@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Bugsage
   class Suggestion
     attr_reader :issue, :location, :root_cause, :fixes, :confidence

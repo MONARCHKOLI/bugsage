@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Bugsage
   class Middleware
     def initialize(app)
@@ -5,12 +7,10 @@ module Bugsage
     end
 
     def call(env)
-      if env["PATH_INFO"] == "/bugsage"
-        return render_dashboard
-      end
+      return render_dashboard if env["PATH_INFO"] == "/bugsage"
 
       @app.call(env)
-    rescue Exception => e
+    rescue StandardError => e
       suggestion = Rule.match(e)
 
       if suggestion

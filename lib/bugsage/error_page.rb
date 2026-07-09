@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "cgi"
 require "json"
 
@@ -105,7 +107,8 @@ module Bugsage
       return "" if context.empty?
 
       rows = context.map do |label, value|
-        "<div class=\"section\"><div class=\"label\">#{escape_html(label)}</div><div class=\"value\">#{escape_html(format_value(value))}</div></div>"
+        "<div class=\"section\"><div class=\"label\">#{escape_html(label)}</div>" \
+          "<div class=\"value\">#{escape_html(format_value(value))}</div></div>"
       end.join
 
       "<div class=\"section\"><div class=\"label\">Rails Request Context</div>#{rows}</div>"
