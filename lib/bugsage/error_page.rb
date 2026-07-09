@@ -5,7 +5,7 @@ require "json"
 
 module Bugsage
   class ErrorPage
-    def self.render(suggestion, context = {})
+    def self.render(suggestion, context = {}, ai_error: nil)
       file_path, line_number = CodeContext.extract_location(suggestion.location)
       code_context = CodeContext.render_code_context(file_path, line_number)
 
@@ -157,6 +157,34 @@ module Bugsage
               font-weight: bold;
               font-size: 13px;
             }
+            .source-badge {
+              display: inline-block;
+              background: rgba(137, 180, 250, 0.2);
+              color: #89b4fa;
+              padding: 4px 12px;
+              border-radius: 999px;
+              font-size: 12px;
+              font-weight: bold;
+              margin-top: 8px;
+            }
+            .ai-notes {
+              background: rgba(137, 180, 250, 0.1);
+              border-left: 4px solid #89b4fa;
+              padding: 16px;
+              border-radius: 4px;
+              margin: 24px 0;
+              color: #cdd6f4;
+              white-space: pre-wrap;
+            }
+            .ai-error {
+              background: rgba(250, 179, 135, 0.1);
+              border-left: 4px solid #fab387;
+              padding: 16px;
+              border-radius: 4px;
+              margin: 24px 0;
+              color: #f9e2af;
+              white-space: pre-wrap;
+            }
             .row {
               display: grid;
               grid-template-columns: 1fr 1fr;
@@ -174,6 +202,7 @@ module Bugsage
 
             <div class="header-info">
               <p><strong>Location:</strong> #{CodeContext.escape_html(suggestion.location)}</p>
+              #{render_source_badge(suggestion)}
             </div>
 
             #{code_context}
@@ -184,6 +213,10 @@ module Bugsage
             </div>
 
             #{render_request_context(context)}
+
+            #{render_ai_notes(suggestion)}
+
+            #{render_ai_error(ai_error)}
 
             <div class="row">
               <div class="section">
@@ -214,6 +247,34 @@ module Bugsage
       end.join
 
       "<div class=\"section\"><div class=\"label\">Rails Request Context</div>#{rows}</div>"
+    end
+
+    def self.render_source_badge(suggestion)
+      return "" unless suggestion.ai_enhanced?
+
+      "<p><span class=\"source-badge\">AI-enhanced analysis</span></p>"
+    end
+
+    def self.render_ai_notes(suggestion)
+      return "" if suggestion.ai_notes.to_s.strip.empty?
+
+      <<~HTML
+        <div class="section">
+          <div class="label">AI Notes</div>
+          <div class="ai-notes">#{CodeContext.escape_html(suggestion.ai_notes)}</div>
+        </div>
+      HTML
+    end
+
+    def self.render_ai_error(ai_error)
+      return "" if ai_error.to_s.strip.empty?
+
+      <<~HTML
+        <div class="section">
+          <div class="label">AI Status</div>
+          <div class="ai-error">AI analysis was enabled but could not run: #{CodeContext.escape_html(ai_error)}</div>
+        </div>
+      HTML
     end
 
     def self.format_value(value)

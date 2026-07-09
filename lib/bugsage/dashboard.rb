@@ -89,6 +89,7 @@ module Bugsage
           <header class="detail-header">
             <h2>#{CodeContext.escape_html(event[:issue])}</h2>
             <span class="confidence-badge">#{event[:confidence]}% confidence</span>
+            #{render_source_badge(event)}
           </header>
 
           <div class="detail-meta">
@@ -113,9 +114,13 @@ module Bugsage
 
             <div class="detail-section">
               <div class="label">Analysis</div>
-              <p class="confidence-detail">#{event[:confidence]}% match for this exception type based on BugSage rules.</p>
+              <p class="confidence-detail">#{analysis_summary(event)}</p>
             </div>
           </div>
+
+          #{render_ai_notes(event)}
+
+          #{render_ai_error(event)}
 
           #{render_request_context(context)}
         </section>
@@ -178,6 +183,51 @@ module Bugsage
       else
         value.to_s
       end
+    end
+
+    def self.analysis_summary(event)
+      confidence = event[:confidence]
+      source = event[:source].to_s
+      ai_error = event[:ai_error].to_s.strip
+
+      return "AI analysis was enabled but failed: #{ai_error}" unless ai_error.empty?
+
+      case source
+      when "hybrid", "ai"
+        "#{confidence}% confidence after combining BugSage rules with AI analysis."
+      else
+        "#{confidence}% match for this exception type based on BugSage rules."
+      end
+    end
+
+    def self.render_source_badge(event)
+      return "" unless %w[hybrid ai].include?(event[:source].to_s)
+
+      '<span class="source-badge">AI-enhanced</span>'
+    end
+
+    def self.render_ai_notes(event)
+      notes = event[:ai_notes].to_s.strip
+      return "" if notes.empty?
+
+      <<~HTML
+        <div class="detail-section">
+          <div class="label">AI notes</div>
+          <div class="ai-notes">#{CodeContext.escape_html(notes)}</div>
+        </div>
+      HTML
+    end
+
+    def self.render_ai_error(event)
+      error = event[:ai_error].to_s.strip
+      return "" if error.empty?
+
+      <<~HTML
+        <div class="detail-section">
+          <div class="label">AI status</div>
+          <div class="ai-error">AI analysis was enabled but could not run: #{CodeContext.escape_html(error)}</div>
+        </div>
+      HTML
     end
 
     def self.short_location(location)
@@ -364,6 +414,32 @@ module Bugsage
           font-size: 12px;
           font-weight: bold;
           white-space: nowrap;
+        }
+        .source-badge {
+          background: rgba(137, 180, 250, 0.2);
+          color: #89b4fa;
+          padding: 6px 14px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: bold;
+          white-space: nowrap;
+        }
+        .ai-notes {
+          background: rgba(137, 180, 250, 0.1);
+          border-left: 4px solid #89b4fa;
+          padding: 16px;
+          border-radius: 4px;
+          margin-bottom: 20px;
+          white-space: pre-wrap;
+        }
+        .ai-error {
+          background: rgba(250, 179, 135, 0.1);
+          border-left: 4px solid #fab387;
+          padding: 16px;
+          border-radius: 4px;
+          margin-bottom: 20px;
+          color: #f9e2af;
+          white-space: pre-wrap;
         }
         .detail-meta {
           display: flex;

@@ -12,6 +12,8 @@ module Bugsage
       print_section(pastel, "Root Cause", suggestion.root_cause)
       print_fixes(pastel, suggestion.fixes)
       print_section(pastel, "Confidence", "#{suggestion.confidence}%")
+      print_section(pastel, "Source", suggestion.source.to_s) if suggestion.ai_enhanced?
+      print_section(pastel, "AI Notes", suggestion.ai_notes) if suggestion.ai_notes
     end
 
     def self.print_header(pastel, title)

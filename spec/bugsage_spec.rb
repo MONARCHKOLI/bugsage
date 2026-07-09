@@ -412,6 +412,195 @@ RSpec.describe Bugsage do
       expect(Bugsage.configuration.show_error_page?("production")).to be true
       expect(Bugsage.configuration.ai_enabled?("production")).to be true
     end
+
+    it "requires an API key before AI is considered configured" do
+      config = described_class.new
+      config.ai_enabled = true
+
+      expect(config.ai_configured?("development")).to be false
+
+      config.openai_api_key = "test-key"
+
+      expect(config.ai_configured?("development")).to be true
+    end
+
+    it "treats a custom ai_client as configured without an API key" do
+      config = described_class.new
+      config.ai_enabled = true
+      config.ai_client = Object.new
+
+      expect(config.ai_configured?("development")).to be true
+    end
+
+    it "resolves the OpenAI API key from environment variables" do
+      config = described_class.new
+      ENV["BUGSAGE_OPENAI_API_KEY"] = "env-key"
+
+      expect(config.resolved_openai_api_key).to eq("env-key")
+    ensure
+      ENV.delete("BUGSAGE_OPENAI_API_KEY")
+    end
+  end
+
+  describe Bugsage::Suggestion do
+    it "tracks whether a suggestion was AI-enhanced" do
+      suggestion = described_class.new(
+        issue: "NoMethodError",
+        location: "app.rb:1",
+        root_cause: "nil receiver",
+        fixes: ["Add nil guard"],
+        confidence: 95,
+        source: :hybrid,
+        ai_notes: "Check initialization order."
+      )
+
+      expect(suggestion.ai_enhanced?).to be true
+      expect(suggestion.source).to eq(:hybrid)
+      expect(suggestion.ai_notes).to eq("Check initialization order.")
+    end
+  end
+
+  describe Bugsage::AiAnalyzer do
+    let(:base_suggestion) do
+      Bugsage::Suggestion.new(
+        issue: "NoMethodError",
+        location: "app/models/user.rb:12",
+        root_cause: "undefined method `name' for nil",
+        fixes: ["Add nil guard"],
+        confidence: 95
+      )
+    end
+
+    let(:exception) { NoMethodError.new("undefined method `name' for nil:NilClass") }
+
+    let(:mock_client) do
+      Class.new do
+        def complete(system_prompt:, user_prompt:)
+          JSON.generate(
+            root_cause: "The user object was nil before calling name.",
+            fixes: ["Initialize @user before the action runs", "Add nil guard"],
+            confidence: 92,
+            notes: "This often happens when a before_action lookup fails silently."
+          )
+        end
+      end.new
+    end
+
+    it "returns the rule suggestion when AI is disabled" do
+      Bugsage.configure { |config| config.ai_enabled = false }
+
+      result, ai_error = described_class.enhance(base_suggestion, exception, {}, client: mock_client)
+
+      expect(result).to equal(base_suggestion)
+      expect(result.source).to eq(:rules)
+      expect(ai_error).to be_nil
+    end
+
+    it "returns the rule suggestion when no API key is configured" do
+      Bugsage.configure do |config|
+        config.ai_enabled = true
+        config.openai_api_key = nil
+      end
+      ENV.delete("OPENAI_API_KEY")
+      ENV.delete("BUGSAGE_OPENAI_API_KEY")
+
+      result, ai_error = described_class.enhance(base_suggestion, exception, {}, client: mock_client)
+
+      expect(result).to equal(base_suggestion)
+      expect(ai_error).to be_nil
+    end
+
+    it "merges AI output into the rule suggestion when configured" do
+      Bugsage.configure do |config|
+        config.ai_enabled = true
+        config.openai_api_key = "test-key"
+      end
+
+      result, ai_error = described_class.enhance(base_suggestion, exception, {}, client: mock_client)
+
+      expect(result.source).to eq(:hybrid)
+      expect(result.root_cause).to include("user object was nil")
+      expect(result.fixes.first).to eq("Initialize @user before the action runs")
+      expect(result.fixes).to include("Add nil guard")
+      expect(result.confidence).to eq(92)
+      expect(result.ai_notes).to include("before_action")
+      expect(ai_error).to be_nil
+    end
+
+    it "falls back to the rule suggestion when the AI client fails" do
+      failing_client = Class.new do
+        def complete(**)
+          raise Bugsage::Error, "API unavailable"
+        end
+      end.new
+
+      Bugsage.configure do |config|
+        config.ai_enabled = true
+        config.openai_api_key = "test-key"
+      end
+
+      result, ai_error = described_class.enhance(base_suggestion, exception, {}, client: failing_client)
+
+      expect(result).to equal(base_suggestion)
+      expect(result.source).to eq(:rules)
+      expect(ai_error).to eq("API unavailable")
+    end
+  end
+
+  describe "AI-enhanced exception handling" do
+    around do |example|
+      original = ENV.fetch("RAILS_ENV", nil)
+      ENV["RAILS_ENV"] = "development"
+      example.run
+    ensure
+      if original
+        ENV["RAILS_ENV"] = original
+      else
+        ENV.delete("RAILS_ENV")
+      end
+    end
+
+    let(:mock_client) do
+      Class.new do
+        def complete(system_prompt:, user_prompt:)
+          JSON.generate(
+            root_cause: "AI says the receiver was nil.",
+            fixes: ["AI fix"],
+            confidence: 91,
+            notes: "AI notes here."
+          )
+        end
+      end.new
+    end
+
+    before do
+      Bugsage.configure do |config|
+        config.show_error_page = true
+        config.capture_errors = true
+        config.ai_enabled = true
+        config.openai_api_key = "test-key"
+        config.ai_client = mock_client
+      end
+    end
+
+    it "stores hybrid suggestions through ExceptionHandler" do
+      env = {
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/users",
+        "HTTP_HOST" => "example.test"
+      }
+      exception = NoMethodError.new("undefined method `foo' for nil:NilClass")
+
+      Bugsage::Store.clear!
+      status, _headers, body = Bugsage::ExceptionHandler.render_response(env, exception)
+
+      stored = Bugsage::Store.all.first
+      expect(status).to eq(500)
+      expect(stored[:source]).to eq(:hybrid)
+      expect(stored[:ai_notes]).to eq("AI notes here.")
+      expect(body.join).to include("AI-enhanced analysis")
+      expect(body.join).to include("AI notes here.")
+    end
   end
 
   describe Bugsage::Middleware do

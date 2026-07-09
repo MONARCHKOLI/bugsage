@@ -7,6 +7,11 @@ module Bugsage
                   :show_dashboard,
                   :capture_errors,
                   :ai_enabled,
+                  :openai_api_key,
+                  :openai_model,
+                  :openai_api_base,
+                  :ai_timeout,
+                  :ai_client,
                   :fallback_exceptions_app
 
     def initialize
@@ -15,6 +20,11 @@ module Bugsage
       @show_dashboard = nil
       @capture_errors = true
       @ai_enabled = false
+      @openai_api_key = nil
+      @openai_model = "gpt-4o-mini"
+      @openai_api_base = "https://api.openai.com/v1"
+      @ai_timeout = 15
+      @ai_client = nil
       @fallback_exceptions_app = nil
     end
 
@@ -44,6 +54,16 @@ module Bugsage
       return false unless enabled?(environment)
 
       ai_enabled
+    end
+
+    def ai_configured?(environment = current_environment)
+      return false unless ai_enabled?(environment)
+
+      !ai_client.nil? || !resolved_openai_api_key.to_s.strip.empty?
+    end
+
+    def resolved_openai_api_key
+      openai_api_key || ENV["OPENAI_API_KEY"] || ENV["BUGSAGE_OPENAI_API_KEY"]
     end
 
     def current_environment
