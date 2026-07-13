@@ -24,6 +24,10 @@ module Bugsage
       Bugsage::AutoConfigurator.apply!
     end
 
+    initializer "bugsage.i18n" do
+      Bugsage::Translations.load!
+    end
+
     initializer "bugsage.middleware" do |app|
       app.config.middleware.use Bugsage::Middleware
     end

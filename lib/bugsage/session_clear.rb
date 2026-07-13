@@ -14,7 +14,7 @@ module Bugsage
       redirect_to = "/bugsage"
 
       if json_request?(env)
-        json_response({ ok: true, message: "Session logs cleared." })
+        json_response({ ok: true, message: Bugsage.t("errors.session_logs_cleared") })
       else
         redirect_response(redirect_to)
       end
@@ -31,11 +31,11 @@ module Bugsage
     end
 
     def self.redirect_response(path)
-      [302, { "Location" => path, "Content-Type" => "text/plain" }, ["Session logs cleared."]]
+      [302, { "Location" => path, "Content-Type" => "text/plain" }, [Bugsage.t("errors.session_logs_cleared")]]
     end
 
     def self.not_found
-      [404, { "Content-Type" => "text/plain" }, ["Not Found"]]
+      [404, { "Content-Type" => "text/plain" }, [Bugsage.t("common.not_found")]]
     end
   end
 end

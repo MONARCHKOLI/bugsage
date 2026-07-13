@@ -68,20 +68,20 @@ module Bugsage
     def preview
       case action
       when "no_change"
-        "No code change required."
+        Bugsage.t("code_patch.no_change")
       when "delete_lines"
         if start_line == end_line
-          "- remove line #{start_line}"
+          Bugsage.t("code_patch.delete_line", line: start_line)
         else
-          "- remove lines #{start_line}-#{end_line}"
+          Bugsage.t("code_patch.delete_lines", start_line: start_line, end_line: end_line)
         end
       when "insert_before"
-        "+ insert before line #{start_line}:\n#{replacement}"
+        Bugsage.t("code_patch.insert_before", line: start_line, replacement: replacement)
       else
         if start_line == end_line
-          "replace line #{start_line} with:\n#{replacement}"
+          Bugsage.t("code_patch.replace_line", line: start_line, replacement: replacement)
         else
-          "replace lines #{start_line}-#{end_line} with:\n#{replacement}"
+          Bugsage.t("code_patch.replace_lines", start_line: start_line, end_line: end_line, replacement: replacement)
         end
       end
     end
@@ -111,8 +111,8 @@ module Bugsage
     end
 
     def validate_range!(lines)
-      raise Bugsage::Error, "Invalid patch line range." if start_line < 1 || end_line < start_line
-      raise Bugsage::Error, "Patch ends after file end." if end_line > lines.length
+      raise Bugsage::Error, Bugsage.t("code_patch.invalid_line_range") if start_line < 1 || end_line < start_line
+      raise Bugsage::Error, Bugsage.t("code_patch.patch_ends_after_file_end") if end_line > lines.length
     end
 
     def replace_lines!(lines)

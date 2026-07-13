@@ -5,6 +5,8 @@ require_relative "bugsage/configuration"
 require_relative "bugsage/suggestion"
 require_relative "bugsage/trace_cleaner"
 require_relative "bugsage/exception_support"
+require_relative "bugsage/http_response_error"
+require_relative "bugsage/http_error_capture"
 require_relative "bugsage/code_context"
 require_relative "bugsage/rule"
 require_relative "bugsage/openai_client"
@@ -22,6 +24,7 @@ require_relative "bugsage/editor_links"
 require_relative "bugsage/fix_applicator"
 require_relative "bugsage/session_clear"
 require_relative "bugsage/page_actions"
+require_relative "bugsage/translations"
 require_relative "bugsage/exception_handler"
 require_relative "bugsage/error_page"
 require_relative "bugsage/dashboard"
@@ -34,12 +37,18 @@ require_relative "bugsage/exceptions_app"
 
 require_relative "bugsage/railtie" if defined?(Rails::Railtie)
 
+Bugsage::Translations.load!
+
 module Bugsage
   class Error < StandardError; end
 
   class << self
     def configuration
       @configuration ||= Configuration.new
+    end
+
+    def t(key, **)
+      Translations.t(key, **)
     end
 
     def configure

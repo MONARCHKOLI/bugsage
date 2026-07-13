@@ -1,0 +1,439 @@
+en:
+  bugsage:
+    common:
+      unknown: "unknown"
+      not_available: "n/a"
+      not_found: "Not Found"
+
+    context:
+      request_method: "Request method"
+      path: "Path"
+      query_string: "Query string"
+      host: "Host"
+      request_id: "Request ID"
+      controller: "Controller"
+      action: "Action"
+      path_parameters: "Path parameters"
+      request_parameters: "Request parameters"
+      query_parameters: "Query parameters"
+      form_parameters: "Form parameters"
+      user_agent: "User agent"
+
+    rules:
+      no_method_error:
+        issue: "NoMethodError"
+        root_cause_default: "Called a method on an unexpected object"
+        fixes:
+          - "Check object initialization"
+          - "Add nil guard"
+          - "Verify the method exists on the receiver"
+
+      record_not_found:
+        issue: "ActiveRecord::RecordNotFound"
+        fixes:
+          - "Verify the record ID exists before querying"
+          - "Use find_by instead of find if a missing record is expected"
+          - "Add a rescue_from ActiveRecord::RecordNotFound handler for a friendly 404 page"
+
+      routing_error:
+        issue: "ActionController::RoutingError"
+        fixes:
+          - "Verify the requested route and path"
+          - "Check the controller and action names"
+          - "Confirm the route is defined in config/routes.rb"
+
+      parameter_missing:
+        issue: "ActionController::ParameterMissing"
+        fixes:
+          - "Check the incoming parameters and required fields"
+          - "Ensure the expected form or query parameter is present"
+          - "Add a fallback or validation before accessing the parameter"
+
+      unpermitted_parameters:
+        issue: "ActionController::UnpermittedParameters"
+        fixes:
+          - "Whitelist allowed parameters in your strong params"
+          - "Review the incoming payload shape"
+          - "Match the parameter names expected by your controller"
+
+      bad_request:
+        issue: "ActionController::BadRequest"
+        fixes:
+          - "Verify the request payload and expected format"
+          - "Check parameter names and content types"
+          - "Add a rescue handler for malformed requests"
+
+      invalid_authenticity_token:
+        issue: "ActionController::InvalidAuthenticityToken"
+        fixes:
+          - "Ensure the form includes the CSRF token"
+          - "Review token generation and session persistence"
+          - "Verify that the request is coming from the expected origin"
+
+      parse_error:
+        issue: "ActionDispatch::Http::Parameters::ParseError"
+        fixes:
+          - "Verify the request body format and encoding"
+          - "Inspect the client payload being sent"
+          - "Ensure the server accepts the expected content type"
+
+      deserialization_error:
+        issue: "ActiveJob::DeserializationError"
+        fixes:
+          - "Check job payload compatibility and serializer setup"
+          - "Ensure referenced classes are still present"
+          - "Review recent model or job changes that could break deserialization"
+
+      template_error:
+        issue: "ActionView::Template::Error"
+        fixes:
+          - "Verify the template name and format"
+          - "Check the view file exists and uses the expected layout"
+          - "Review partials or helpers referenced by the view"
+
+      missing_exact_template:
+        issue: "ActionController::MissingExactTemplate"
+        fixes:
+          - "Add the expected template for the requested format"
+          - "Check the request format and route constraints"
+          - "Ensure the appropriate template exists for the action"
+
+      active_storage_error:
+        issue: "ActiveStorage::FileNotFoundError"
+        fixes:
+          - "Verify the storage object exists and the key is correct"
+          - "Check the file upload or attachment lifecycle"
+          - "Ensure the backing storage service is reachable"
+
+      active_storage_integrity_error:
+        issue: "ActiveStorage::IntegrityError"
+        fixes:
+          - "Validate uploaded content and storage integrity"
+          - "Check for partial uploads or corrupted blobs"
+          - "Review the storage backend and file transfer path"
+
+      redis_error:
+        issue: "Redis::BaseError"
+        fixes:
+          - "Verify the Redis connection settings and service availability"
+          - "Check authentication credentials and network access"
+          - "Inspect the Redis client configuration and timeouts"
+
+      unknown_format:
+        issue: "ActionController::UnknownFormat"
+        fixes:
+          - "Check the requested format and respond with a supported one"
+          - "Verify the request format or content negotiation logic"
+          - "Add a fallback response for unsupported formats"
+
+      invalid_cross_origin_request:
+        issue: "ActionController::InvalidCrossOriginRequest"
+        fixes:
+          - "Verify the CORS configuration and request origin"
+          - "Check the allowed methods, headers, and credentials settings"
+          - "Review browser preflight requests against your policy"
+
+      flash_error:
+        issue: "ActionDispatch::Flash::FlashError"
+        fixes:
+          - "Check flash usage and session persistence"
+          - "Ensure the session store is available"
+          - "Review code that writes or reads flash state"
+
+      invalid_signature:
+        issue: "ActiveSupport::MessageVerifier::InvalidSignature"
+        fixes:
+          - "Verify the signed payload and secret rotation"
+          - "Check for tampered or expired tokens"
+          - "Review message generation and verification paths"
+
+      faraday_error:
+        issue: "Faraday::Error"
+        fixes:
+          - "Inspect the upstream service and network connectivity"
+          - "Verify request headers, auth, and timeout settings"
+          - "Review recent API contract or endpoint changes"
+
+      record_invalid:
+        issue: "ActiveRecord::RecordInvalid"
+        fixes:
+          - "Check model validations and required attributes"
+          - "Inspect the form or payload being saved"
+          - "Add explicit validation messages for the user"
+
+      record_not_unique:
+        issue: "ActiveRecord::RecordNotUnique"
+        fixes:
+          - "Check for a unique index or constraint being violated"
+          - "Look up the existing record before inserting a duplicate"
+          - "Use find_or_create_by or upsert to avoid duplicate inserts"
+
+      not_null_violation:
+        issue: "ActiveRecord::NotNullViolation"
+        fixes:
+          - "Provide a value for the NOT NULL column being inserted"
+          - "Add a default value or make the column nullable in a migration"
+          - "Validate presence of the attribute before saving"
+
+      statement_invalid:
+        issue: "ActiveRecord::StatementInvalid"
+        fixes:
+          - "Inspect the generated SQL and the underlying database error"
+          - "Check for missing columns, tables, or pending migrations"
+          - "Verify data types and query arguments match the schema"
+
+      connection_not_established:
+        issue: "ActiveRecord::ConnectionNotEstablished"
+        fixes:
+          - "Verify the database is running and reachable"
+          - "Check database.yml credentials, host, and pool settings"
+          - "Ensure the connection pool is not exhausted under load"
+
+      stale_object:
+        issue: "ActiveRecord::StaleObjectError"
+        fixes:
+          - "Reload the record before retrying the update"
+          - "Handle optimistic locking conflicts with a rescue and retry"
+          - "Confirm the lock_version column is being tracked correctly"
+
+      pg_error:
+        issue_fallback: "PG::Error"
+        fixes:
+          - "Inspect the PostgreSQL error detail in the message"
+          - "Verify the connection, credentials, and database availability"
+          - "Check the query, constraints, and column definitions"
+
+      name_error:
+        issue: "NameError"
+        fixes:
+          - "Check for a typo in the constant, class, or variable name"
+          - "Ensure the referenced class or module is required and loaded"
+          - "Verify the name is defined in the current scope"
+
+      key_error:
+        issue: "KeyError"
+        fixes:
+          - "Verify the key exists before accessing it with fetch"
+          - "Provide a default value to Hash#fetch"
+          - "Check the source data for the expected keys"
+
+      argument_error:
+        issue: "ArgumentError"
+        fixes:
+          - "Check the number and order of arguments passed"
+          - "Verify keyword arguments match the method signature"
+          - "Inspect the value being passed for the expected type or range"
+
+      type_error:
+        issue: "TypeError"
+        fixes:
+          - "Ensure the value is the expected type before using it"
+          - "Add an explicit conversion (to_s, to_i, to_a) where needed"
+          - "Guard against nil or unexpected objects in the operation"
+
+      zero_division_error:
+        issue: "ZeroDivisionError"
+        fixes:
+          - "Guard against a zero divisor before dividing"
+          - "Return a default or nil when the denominator is zero"
+          - "Validate the input values feeding the calculation"
+
+      json_parse_error:
+        issue_fallback: "JSON::ParserError"
+        fixes:
+          - "Verify the payload is valid JSON before parsing"
+          - "Rescue JSON::ParserError and handle malformed input"
+          - "Check the content type and encoding of the source data"
+
+      timeout_error:
+        issue_fallback: "Timeout::Error"
+        fixes:
+          - "Increase the timeout for the slow operation if appropriate"
+          - "Inspect the upstream service or query that is running long"
+          - "Add retries with backoff for transient timeouts"
+
+      frozen_error:
+        issue: "FrozenError"
+        fixes:
+          - "Avoid mutating a frozen object; work on a duplicate with dup"
+          - "Check for frozen string literals when modifying strings"
+          - "Build a new object instead of mutating the frozen one"
+
+      runtime_error:
+        issue_fallback: "RuntimeError"
+        fixes:
+          - "Read the error message for the specific failure"
+          - "Inspect the code path that raised the error"
+          - "Add handling or validation around the failing operation"
+
+      generic_exception:
+        issue_fallback: "Exception"
+        fixes:
+          - "Inspect the failing code path and surrounding stack trace"
+          - "Verify the expected input, state, or configuration"
+          - "Add a targeted rescue or validation around the failing operation"
+
+    http_errors:
+      issue: "HTTP %{status} Response"
+      status_label_fallback: "HTTP %{status}"
+      message:
+        base: "%{status} %{status_label}"
+        at_location: " at %{location}"
+        with_detail: ": %{detail}"
+      fixes:
+        "400":
+          - "Review the request payload and required parameters"
+          - "Check controller validations for this action"
+          - "Confirm the client sends the expected JSON or form fields"
+        "401":
+          - "Verify authentication credentials or tokens"
+          - "Check whether the session has expired"
+          - "Confirm the login endpoint receives all required fields"
+        "403":
+          - "Verify the current user has permission for this action"
+          - "Check authorization rules in the controller or policy"
+        "404":
+          - "Verify the requested resource exists"
+          - "Check route params and lookup conditions in the controller"
+        "422":
+          - "Review model validations and error messages"
+          - "Check which fields failed validation in the request payload"
+        default:
+          - "Inspect the controller action that returned this status"
+          - "Check application logs for validation or guard clauses"
+          - "Review the API response body for more detail"
+
+    code_patch:
+      no_change: "No code change required."
+      delete_line: "- remove line %{line}"
+      delete_lines: "- remove lines %{start_line}-%{end_line}"
+      insert_before: "+ insert before line %{line}:\n%{replacement}"
+      replace_line: "replace line %{line} with:\n%{replacement}"
+      replace_lines: "replace lines %{start_line}-%{end_line} with:\n%{replacement}"
+      invalid_line_range: "Invalid patch line range."
+      patch_ends_after_file_end: "Patch ends after file end."
+
+    errors:
+      location_required: "Location is required."
+      fix_text_or_patch_required: "Fix text or AI code patch is required."
+      could_not_parse_location: "Could not parse the error location."
+      source_file_not_found: "Source file not found: %{file_path}"
+      line_out_of_range: "Line %{line_number} is out of range."
+      ai_code_patch_missing: "AI code patch is missing."
+      no_code_change_required: "AI determined no code change is required."
+      suggested_code_already_exists: "Suggested code already exists in this file. No changes applied."
+      fix_only_in_dev_test: "Fix application is only available in development and test."
+      fix_applied: "AI fix applied to %{file_path}:%{line_number}."
+      ai_context_not_available: "AI context is not available for this error."
+      enter_message: "Enter a message to send."
+      default_chat_reply: "I updated the suggested fix."
+      session_logs_cleared: "Session logs cleared."
+
+    ui:
+      formatter:
+        analysis: "BugSage Analysis"
+        issue: "Issue"
+        location: "Location"
+        root_cause: "Root Cause"
+        suggested_fixes: "Suggested Fixes"
+        confidence: "Confidence"
+        source: "Source"
+        ai_notes: "AI Notes"
+        confidence_value: "%{confidence}%"
+
+      error_page:
+        title: "BugSage — %{issue}"
+        caught: "🐛 BugSage caught: %{issue}"
+        location_label: "Location:"
+        error_message: "Error Message:"
+        suggested_fixes: "Suggested Fixes"
+        confidence_level: "Confidence Level"
+        confidence_value: "%{confidence}%"
+        rails_request_context: "Rails Request Context"
+        ai_enhanced_analysis: "AI-enhanced analysis"
+        ai_notes: "AI Notes"
+        ai_status: "AI Status"
+        ai_error: "AI analysis was enabled but could not run: %{error}"
+
+      dashboard:
+        title: "BugSage Dashboard"
+        brand: "🐛 BugSage"
+        session_errors: "Session errors"
+        caught_count: "%{count} caught"
+        avg_confidence: "%{confidence}% avg"
+        avg_empty: "—"
+        empty_list_title: "No issues yet"
+        empty_list_hint: "Trigger an exception and it will appear here."
+        empty_detail_title: "No errors captured"
+        empty_detail_body: "When BugSage catches an exception, select it from the list on the left to inspect the failing code, message, and suggested fixes."
+        confidence_badge: "%{confidence}% confidence"
+        location_label: "Location:"
+        time_label: "Time:"
+        error_message: "Error Message:"
+        suggested_fixes: "Suggested fixes"
+        analysis: "Analysis"
+        rails_request_context: "Rails request context"
+        ai_enhanced: "AI-enhanced"
+        ai_notes: "AI notes"
+        ai_status: "AI status"
+        ai_error: "AI analysis was enabled but could not run: %{error}"
+        ai_analysis_failed: "AI analysis was enabled but failed: %{error}"
+        analysis_hybrid: "%{confidence}% confidence after combining BugSage rules with AI analysis."
+        analysis_rules: "%{confidence}% match for this exception type based on BugSage rules."
+
+      page_actions:
+        clear_session_logs: "Clear session logs"
+        open_in_cursor: "Open in Cursor"
+        open_in_vscode: "Open in VS Code"
+        copy_fix: "Copy Fix"
+        apply_fix_to_file: "Apply Fix to File"
+        confirm_clear: "Clear all BugSage session logs?"
+        could_not_clear: "Could not clear session logs."
+        quick_fix_title: "BugSage quick fix"
+        quick_fix_location: "Location: %{location}"
+        quick_fix_suggestion: "Suggestion: %{fix}"
+        copied: "Copied!"
+        confirm_apply: "Apply this fix to the source file in development?"
+        applying: "Applying..."
+        could_not_apply: "Could not apply fix."
+        applied: "Applied!"
+
+      ai_panel:
+        ai_suggestions: "AI Suggestions"
+        chat_about_error_title: "Chat about this error"
+        chat_about_error_aria: "Chat about this error"
+        enable_ai: "Enable AI"
+        help: "Rule-based analysis loads instantly. Click below when you want AI-enhanced fixes."
+        quick_fix_suggestion: "Quick Fix Suggestion"
+        apply_ai_to_codebase: "Apply AI to Codebase"
+        open_in: "Open in"
+        cursor: "Cursor"
+        vscode: "VS Code"
+        loading_steps:
+          - "Reading source code..."
+          - "Analyzing exception..."
+          - "Generating fix suggestion..."
+          - "Almost there..."
+        thinking: "Thinking..."
+        chat_request_failed: "Chat request failed."
+        code_patch_updated: "Code patch updated from chat. Review the preview before applying."
+        confirm_apply_ai: "Apply this AI suggestion directly to your codebase?"
+        applying: "Applying..."
+        could_not_apply_ai: "Could not apply AI fix."
+        applied: "Applied!"
+        requesting_ai: "Requesting AI suggestion..."
+        ai_enhanced_applied: "AI-enhanced suggestion applied."
+        suggestion_updated: "Suggestion updated."
+        confidence_suffix: " confidence"
+        assistant_welcome: "AI suggestion is ready. Ask me to explain the fix, suggest alternatives, or refine the code change."
+
+      ai_chat:
+        working_title: "BugSage AI is working"
+        reading_source: "Reading source code..."
+        chat_header: "💬 Chat about this error"
+        close_chat_aria: "Close chat"
+        input_placeholder: "Ask about the fix or request code changes..."
+        send: "Send"
+
+      exceptions_app:
+        unclassified: "BugSage could not classify this exception."

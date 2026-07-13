@@ -18,9 +18,10 @@ module Bugsage
       return @app.call(env) unless Bugsage.configuration.enabled?
 
       status, headers, body = @app.call(env)
+      body_parts = extract_body(body)
       close_body(body)
 
-      return pass_through(status, headers, body) if bugsage_response?(body)
+      return pass_through(status, headers, body_parts) if bugsage_response?(body_parts)
 
       rendered = capture_routing_error(env, headers)
       return rendered if rendered
@@ -28,7 +29,8 @@ module Bugsage
       rendered = capture_exception(env)
       return rendered if rendered
 
-      [status, headers, body]
+      capture_http_error(env, status, body_parts.join)
+      pass_through(status, headers, body_parts)
     rescue StandardError => e
       result = capture_exception(env, e)
       return result if result.is_a?(Array)
@@ -99,15 +101,34 @@ module Bugsage
       body.close if body.respond_to?(:close)
     end
 
+    def extract_body(body)
+      return Array(body) unless body.respond_to?(:each)
+
+      parts = []
+      body.each { |part| parts << part }
+      parts
+    end
+
+    def capture_http_error(env, status, body)
+      config = Bugsage.configuration
+      return unless config.capture_http_errors?
+      return unless HttpErrorCapture.capture?(status, env)
+
+      ExceptionHandler.store_http_error(env, status, body)
+    end
+
     def capture_exception(env, exception = nil)
       config = Bugsage.configuration
       return unless config.enabled?
 
-      return ExceptionHandler.render_response(env, exception) if config.show_error_page?
+      candidate = exception || ExceptionSupport.extract(env)
+      return unless candidate
+
+      return ExceptionHandler.render_response(env, candidate) if config.show_error_page?
 
       return unless config.capture_errors?
 
-      ExceptionHandler.store_exception(env, exception)
+      ExceptionHandler.store_exception(env, candidate)
       :stored
     end
 
@@ -127,18 +148,18 @@ module Bugsage
       return {} unless env.is_a?(Hash)
 
       {
-        "Request method" => env["REQUEST_METHOD"],
-        "Path" => env["PATH_INFO"],
-        "Query string" => env["QUERY_STRING"],
-        "Host" => env["HTTP_HOST"] || env["SERVER_NAME"],
-        "Request ID" => env["action_dispatch.request_id"] || env["HTTP_X_REQUEST_ID"],
-        "Controller" => path_parameter_value(env, "controller"),
-        "Action" => path_parameter_value(env, "action"),
-        "Path parameters" => path_parameters(env),
-        "Request parameters" => request_parameters(env),
-        "Query parameters" => query_parameters(env),
-        "Form parameters" => form_parameters(env),
-        "User agent" => env["HTTP_USER_AGENT"]
+        Bugsage.t("context.request_method") => env["REQUEST_METHOD"],
+        Bugsage.t("context.path") => env["PATH_INFO"],
+        Bugsage.t("context.query_string") => env["QUERY_STRING"],
+        Bugsage.t("context.host") => env["HTTP_HOST"] || env["SERVER_NAME"],
+        Bugsage.t("context.request_id") => env["action_dispatch.request_id"] || env["HTTP_X_REQUEST_ID"],
+        Bugsage.t("context.controller") => path_parameter_value(env, "controller"),
+        Bugsage.t("context.action") => path_parameter_value(env, "action"),
+        Bugsage.t("context.path_parameters") => path_parameters(env),
+        Bugsage.t("context.request_parameters") => request_parameters(env),
+        Bugsage.t("context.query_parameters") => query_parameters(env),
+        Bugsage.t("context.form_parameters") => form_parameters(env),
+        Bugsage.t("context.user_agent") => env["HTTP_USER_AGENT"]
       }.compact.reject { |_, value| blank?(value) }
     end
 

@@ -16,6 +16,14 @@ module Bugsage
       process(env, exception, render: false)
     end
 
+    def store_http_error(env, status, body)
+      config = Bugsage.configuration
+      return unless config.enabled? && config.capture_http_errors?
+
+      exception = HttpErrorCapture.build_exception(env, status, body)
+      process(env, exception, render: false)
+    end
+
     def process(env, exception, render:)
       config = Bugsage.configuration
       return unless config.enabled?

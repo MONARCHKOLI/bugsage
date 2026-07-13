@@ -9,6 +9,7 @@ module Bugsage
                   :show_dashboard,
                   :show_inline_console,
                   :capture_errors,
+                  :capture_http_errors,
                   :ai_enabled,
                   :ai_provider,
                   :openai_api_key,
@@ -27,6 +28,7 @@ module Bugsage
       @show_dashboard = nil
       @show_inline_console = nil
       @capture_errors = true
+      @capture_http_errors = true
       @ai_enabled = nil
       @ai_provider = nil
       @openai_api_key = nil
@@ -66,6 +68,12 @@ module Bugsage
       return false unless enabled?(environment)
 
       capture_errors
+    end
+
+    def capture_http_errors?(environment = current_environment)
+      return false unless capture_errors?(environment)
+
+      capture_http_errors != false
     end
 
     def ai_enabled?(environment = current_environment)

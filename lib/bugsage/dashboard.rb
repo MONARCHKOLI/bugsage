@@ -10,7 +10,7 @@ module Bugsage
         <html>
         <head>
           <meta charset="utf-8">
-          <title>BugSage Dashboard</title>
+          <title>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.title"))}</title>
           <style>
             #{shared_styles}
           </style>
@@ -19,11 +19,11 @@ module Bugsage
           <div class="dashboard">
             <aside class="sidebar">
               <header class="sidebar-header">
-                <h1>🐛 BugSage</h1>
-                <p class="sidebar-subtitle">Session errors</p>
+                <h1>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.brand"))}</h1>
+                <p class="sidebar-subtitle">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.session_errors"))}</p>
                 <div class="sidebar-stats">
-                  <span class="stat-pill">#{suggestions.size} caught</span>
-                  <span class="stat-pill">#{suggestions.empty? ? "—" : "#{average_confidence(suggestions)}% avg"}</span>
+                  <span class="stat-pill">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.caught_count", count: suggestions.size))}</span>
+                  <span class="stat-pill">#{CodeContext.escape_html(suggestions.empty? ? Bugsage.t("ui.dashboard.avg_empty") : Bugsage.t("ui.dashboard.avg_confidence", confidence: average_confidence(suggestions)))}</span>
                 </div>
                 #{PageActions.render_clear_button unless suggestions.empty?}
               </header>
@@ -49,8 +49,8 @@ module Bugsage
     def self.render_empty_list
       <<~HTML
         <div class="empty-list">
-          <p>No issues yet</p>
-          <p class="empty-hint">Trigger an exception and it will appear here.</p>
+          <p>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.empty_list_title"))}</p>
+          <p class="empty-hint">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.empty_list_hint"))}</p>
         </div>
       HTML
     end
@@ -58,8 +58,8 @@ module Bugsage
     def self.render_empty_detail
       <<~HTML
         <div class="detail-placeholder">
-          <h2>No errors captured</h2>
-          <p>When BugSage catches an exception, select it from the list on the left to inspect the failing code, message, and suggested fixes.</p>
+          <h2>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.empty_detail_title"))}</h2>
+          <p>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.empty_detail_body"))}</p>
         </div>
       HTML
     end
@@ -92,19 +92,19 @@ module Bugsage
         <section id="bug-#{index}" class="bug-detail#{active_class}"#{hidden_attr}>
           <header class="detail-header">
             <h2>#{CodeContext.escape_html(event[:issue])}</h2>
-            <span class="confidence-badge" id="bugsage-confidence-bug-#{index}">#{event[:confidence]}% confidence</span>
+            <span class="confidence-badge" id="bugsage-confidence-bug-#{index}">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.confidence_badge", confidence: event[:confidence]))}</span>
             #{render_source_badge(event)}
           </header>
 
           <div class="detail-meta">
-            <span><strong>Location:</strong> #{CodeContext.escape_html(event[:location])}</span>
-            <span><strong>Time:</strong> #{CodeContext.escape_html(event[:timestamp])}</span>
+            <span><strong>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.location_label"))}</strong> #{CodeContext.escape_html(event[:location])}</span>
+            <span><strong>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.time_label"))}</strong> #{CodeContext.escape_html(event[:timestamp])}</span>
           </div>
 
           #{code_context}
 
           <div class="message-box">
-            <strong>Error Message:</strong>
+            <strong>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.error_message"))}</strong>
             <p>#{CodeContext.escape_html(event[:root_cause])}</p>
           </div>
 
@@ -114,7 +114,7 @@ module Bugsage
 
           <div class="detail-grid">
             <div class="detail-section">
-              <div class="label">Suggested fixes</div>
+              <div class="label">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.suggested_fixes"))}</div>
               <ul class="fixes" id="bugsage-fixes-bug-#{index}">
                 #{fixes.map.with_index { |fix, fix_index| "<li#{' class=\"selected\"' if fix_index.zero?}>#{CodeContext.escape_html(fix)}</li>" }.join}
               </ul>
@@ -122,7 +122,7 @@ module Bugsage
             </div>
 
             <div class="detail-section">
-              <div class="label">Analysis</div>
+              <div class="label">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.analysis"))}</div>
               <p class="confidence-detail">#{analysis_summary(event)}</p>
             </div>
           </div>
@@ -173,7 +173,7 @@ module Bugsage
 
       <<~HTML
         <div class="detail-section">
-          <div class="label">Rails request context</div>
+          <div class="label">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.rails_request_context"))}</div>
           <div class="context-panel">#{rows}</div>
         </div>
       HTML
@@ -184,7 +184,7 @@ module Bugsage
       when Hash, Array
         JSON.pretty_generate(value)
       when NilClass
-        "n/a"
+        Bugsage.t("common.not_available")
       else
         value.to_s
       end
@@ -195,13 +195,13 @@ module Bugsage
       source = event[:source].to_s
       ai_error = event[:ai_error].to_s.strip
 
-      return "AI analysis was enabled but failed: #{ai_error}" unless ai_error.empty?
+      return Bugsage.t("ui.dashboard.ai_analysis_failed", error: ai_error) unless ai_error.empty?
 
       case source
       when "hybrid", "ai"
-        "#{confidence}% confidence after combining BugSage rules with AI analysis."
+        Bugsage.t("ui.dashboard.analysis_hybrid", confidence: confidence)
       else
-        "#{confidence}% match for this exception type based on BugSage rules."
+        Bugsage.t("ui.dashboard.analysis_rules", confidence: confidence)
       end
     end
 
@@ -221,7 +221,7 @@ module Bugsage
     def self.render_source_badge(event)
       return "" unless %w[hybrid ai].include?(event[:source].to_s)
 
-      '<span class="source-badge">AI-enhanced</span>'
+      "<span class=\"source-badge\">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.ai_enhanced"))}</span>"
     end
 
     def self.render_ai_notes(event)
@@ -230,7 +230,7 @@ module Bugsage
 
       <<~HTML
         <div class="detail-section">
-          <div class="label">AI notes</div>
+          <div class="label">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.ai_notes"))}</div>
           <div class="ai-notes">#{CodeContext.escape_html(notes)}</div>
         </div>
       HTML
@@ -242,14 +242,14 @@ module Bugsage
 
       <<~HTML
         <div class="detail-section">
-          <div class="label">AI status</div>
-          <div class="ai-error">AI analysis was enabled but could not run: #{CodeContext.escape_html(error)}</div>
+          <div class="label">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.ai_status"))}</div>
+          <div class="ai-error">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.ai_error", error: error))}</div>
         </div>
       HTML
     end
 
     def self.short_location(location)
-      return "unknown" unless location
+      return Bugsage.t("common.unknown") unless location
 
       file_path, line_number = CodeContext.extract_location(location)
       return location unless file_path

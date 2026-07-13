@@ -30,6 +30,8 @@ Metrics/MethodLength:
     - lib/bugsage/error_page.rb
     - lib/bugsage/fix_applicator.rb
     - lib/bugsage/inline_console.rb
+    - lib/bugsage/middleware.rb
+    - lib/bugsage/page_actions.rb
     - spec/bugsage_spec.rb
 
 Metrics/ClassLength:
@@ -43,7 +45,13 @@ Metrics/ModuleLength:
   Max: 100
   Exclude:
     - lib/bugsage/page_actions.rb
+    - lib/bugsage/http_error_capture.rb
+    - lib/bugsage/translations.rb
     - spec/support/exception_scenarios.rb
+
+Style/FormatStringToken:
+  Exclude:
+    - lib/bugsage/page_actions.rb
 
 Metrics/AbcSize:
   Max: 30
@@ -51,6 +59,10 @@ Metrics/AbcSize:
     - lib/bugsage/ai_chat.rb
     - lib/bugsage/ai_panel.rb
     - lib/bugsage/dashboard.rb
+    - lib/bugsage/error_page.rb
+    - lib/bugsage/middleware.rb
+    - lib/bugsage/page_actions.rb
+    - lib/bugsage/fix_applicator.rb
 
 Metrics/CyclomaticComplexity:
   Max: 12

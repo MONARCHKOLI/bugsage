@@ -1306,5 +1306,125 @@ RSpec.describe Bugsage do
         expect(File.read(file)).to include("# BUGSAGE: Guard against nil before calling name")
       end
     end
+
+    it "captures API bad request responses with a Rack-style body" do
+      original = ENV.fetch("RAILS_ENV", nil)
+      ENV["RAILS_ENV"] = "development"
+
+      Bugsage.configure do |config|
+        config.show_error_page = false
+        config.capture_errors = true
+        config.capture_http_errors = true
+      end
+
+      rack_body = Class.new do
+        def initialize(parts)
+          @parts = parts
+        end
+
+        def each
+          @parts.each { |part| yield part }
+        end
+
+        def close
+        end
+      end
+
+      api_app = lambda do |env|
+        env["action_dispatch.request.path_parameters"] = {
+          controller: "api/v1/auth",
+          action: "login"
+        }
+        [400, { "Content-Type" => "application/json" }, rack_body.new(['{"error":"invalid credentials"}'])]
+      end
+
+      env = {
+        "REQUEST_METHOD" => "POST",
+        "PATH_INFO" => "/api/v1/auth/login",
+        "HTTP_HOST" => "example.test"
+      }
+
+      Bugsage::Store.clear!
+      status, headers, body = Bugsage::Middleware.new(api_app).call(env)
+      stored = Bugsage::Store.all.first
+
+      expect(status).to eq(400)
+      expect(headers["Content-Type"]).to eq("application/json")
+      expect(body.join).to include("invalid credentials")
+      expect(stored[:issue]).to eq("HTTP 400 Response")
+      expect(stored[:location]).to eq("Api::V1::AuthController#login")
+      expect(stored[:root_cause]).to include("invalid credentials")
+    ensure
+      if original
+        ENV["RAILS_ENV"] = original
+      else
+        ENV.delete("RAILS_ENV")
+      end
+    end
+
+    it "captures API bad request responses without raising an exception" do
+      original = ENV.fetch("RAILS_ENV", nil)
+      ENV["RAILS_ENV"] = "development"
+
+      Bugsage.configure do |config|
+        config.show_error_page = false
+        config.capture_errors = true
+        config.capture_http_errors = true
+      end
+
+      api_app = lambda do |env|
+        env["action_dispatch.request.path_parameters"] = {
+          controller: "api/v1/auth",
+          action: "login"
+        }
+        [400, { "Content-Type" => "application/json" }, ['{"error":"email is required"}']]
+      end
+
+      env = {
+        "REQUEST_METHOD" => "POST",
+        "PATH_INFO" => "/api/v1/auth/login",
+        "HTTP_HOST" => "example.test"
+      }
+
+      Bugsage::Store.clear!
+      status, headers, body = Bugsage::Middleware.new(api_app).call(env)
+      stored = Bugsage::Store.all.first
+
+      expect(status).to eq(400)
+      expect(headers["Content-Type"]).to eq("application/json")
+      expect(body.join).to include("email is required")
+      expect(stored[:issue]).to eq("HTTP 400 Response")
+      expect(stored[:location]).to eq("Api::V1::AuthController#login")
+      expect(stored[:root_cause]).to include("email is required")
+    ensure
+      if original
+        ENV["RAILS_ENV"] = original
+      else
+        ENV.delete("RAILS_ENV")
+      end
+    end
+  end
+
+  describe Bugsage::HttpErrorCapture do
+    it "builds an HTTP response error from controller context and JSON body" do
+      env = {
+        "PATH_INFO" => "/api/v1/auth/login",
+        "action_dispatch.request.path_parameters" => {
+          "controller" => "api/v1/auth",
+          "action" => "login"
+        }
+      }
+
+      exception = described_class.build_exception(
+        env,
+        400,
+        '{"error":"email is required"}'
+      )
+
+      expect(exception).to be_a(Bugsage::HttpResponseError)
+      expect(exception.status).to eq(400)
+      expect(exception.location).to eq("Api::V1::AuthController#login")
+      expect(exception.message).to include("email is required")
+    end
   end
 end

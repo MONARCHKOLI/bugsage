@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
+require "json"
+
 module Bugsage
   module PageActions
     module_function
 
-    def render_clear_button(label: "Clear session logs")
+    def render_clear_button(label: Bugsage.t("ui.page_actions.clear_session_logs"))
       <<~HTML
         <button type="button" class="bugsage-clear-logs secondary-button">#{CodeContext.escape_html(label)}</button>
       HTML
@@ -20,13 +22,13 @@ module Bugsage
       <<~HTML
         <div class="fix-actions#{hidden_class}" id="bugsage-fix-actions#{suffix}" data-location="#{location_attr}">
           <button type="button" class="secondary-button bugsage-open-editor" data-editor="cursor" data-url="#{CodeContext.escape_html(editor[:cursor])}">
-            Open in Cursor
+            #{CodeContext.escape_html(Bugsage.t("ui.page_actions.open_in_cursor"))}
           </button>
           <button type="button" class="secondary-button bugsage-open-editor" data-editor="vscode" data-url="#{CodeContext.escape_html(editor[:vscode])}">
-            Open in VS Code
+            #{CodeContext.escape_html(Bugsage.t("ui.page_actions.open_in_vscode"))}
           </button>
-          <button type="button" class="secondary-button bugsage-copy-fix">Copy Fix</button>
-          <button type="button" class="secondary-button bugsage-apply-fix">Apply Fix to File</button>
+          <button type="button" class="secondary-button bugsage-copy-fix">#{CodeContext.escape_html(Bugsage.t("ui.page_actions.copy_fix"))}</button>
+          <button type="button" class="secondary-button bugsage-apply-fix">#{CodeContext.escape_html(Bugsage.t("ui.page_actions.apply_fix_to_file"))}</button>
         </div>
       HTML
     end
@@ -72,11 +74,34 @@ module Bugsage
     end
 
     def render_script
+      empty_list_html = <<~HTML.strip.gsub("\n", "")
+        <div class="empty-list"><p>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.empty_list_title"))}</p><p class="empty-hint">#{CodeContext.escape_html(Bugsage.t("ui.dashboard.empty_list_hint"))}</p></div>
+      HTML
+      empty_detail_html = <<~HTML.strip.gsub("\n", "")
+        <div class="detail-placeholder"><h2>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.empty_detail_title"))}</h2><p>#{CodeContext.escape_html(Bugsage.t("ui.dashboard.empty_detail_body"))}</p></div>
+      HTML
+
       <<~HTML
         <script>
           (function () {
             if (window.__bugsagePageActionsInitialized) return;
             window.__bugsagePageActionsInitialized = true;
+
+            var EMPTY_LIST_HTML = #{JSON.generate(empty_list_html)};
+            var EMPTY_DETAIL_HTML = #{JSON.generate(empty_detail_html)};
+            var CAUGHT_COUNT_ZERO = #{JSON.generate(Bugsage.t("ui.dashboard.caught_count", count: 0))};
+            var AVG_EMPTY = #{JSON.generate(Bugsage.t("ui.dashboard.avg_empty"))};
+            var CONFIRM_CLEAR = #{JSON.generate(Bugsage.t("ui.page_actions.confirm_clear"))};
+            var COULD_NOT_CLEAR = #{JSON.generate(Bugsage.t("ui.page_actions.could_not_clear"))};
+            var QUICK_FIX_TITLE = #{JSON.generate(Bugsage.t("ui.page_actions.quick_fix_title"))};
+            var QUICK_FIX_LOCATION = #{JSON.generate(Bugsage.t("ui.page_actions.quick_fix_location"))};
+            var QUICK_FIX_SUGGESTION = #{JSON.generate(Bugsage.t("ui.page_actions.quick_fix_suggestion"))};
+            var COPIED = #{JSON.generate(Bugsage.t("ui.page_actions.copied"))};
+            var COPY_FIX = #{JSON.generate(Bugsage.t("ui.page_actions.copy_fix"))};
+            var CONFIRM_APPLY = #{JSON.generate(Bugsage.t("ui.page_actions.confirm_apply"))};
+            var APPLYING = #{JSON.generate(Bugsage.t("ui.page_actions.applying"))};
+            var COULD_NOT_APPLY = #{JSON.generate(Bugsage.t("ui.page_actions.could_not_apply"))};
+            var APPLIED = #{JSON.generate(Bugsage.t("ui.page_actions.applied"))};
 
             function selectedFixText(actions) {
               var panel = actions.closest(".bug-detail, .container");
@@ -107,15 +132,15 @@ module Bugsage
               var statPills = document.querySelectorAll(".sidebar-stats .stat-pill");
 
               if (bugList) {
-                bugList.innerHTML = '<div class="empty-list"><p>No issues yet</p><p class="empty-hint">Trigger an exception and it will appear here.</p></div>';
+                bugList.innerHTML = EMPTY_LIST_HTML;
               }
 
               if (detailPanel) {
-                detailPanel.innerHTML = '<div class="detail-placeholder"><h2>No errors captured</h2><p>When BugSage catches an exception, select it from the list on the left to inspect the failing code, message, and suggested fixes.</p></div>';
+                detailPanel.innerHTML = EMPTY_DETAIL_HTML;
               }
 
-              if (statPills[0]) statPills[0].textContent = "0 caught";
-              if (statPills[1]) statPills[1].textContent = "—";
+              if (statPills[0]) statPills[0].textContent = CAUGHT_COUNT_ZERO;
+              if (statPills[1]) statPills[1].textContent = AVG_EMPTY;
               if (clearButton) clearButton.hidden = true;
             }
 
@@ -133,7 +158,7 @@ module Bugsage
               var clearButton = event.target.closest(".bugsage-clear-logs");
               if (clearButton) {
                 event.preventDefault();
-                if (!window.confirm("Clear all BugSage session logs?")) return;
+                if (!window.confirm(CONFIRM_CLEAR)) return;
 
                 clearButton.disabled = true;
                 fetch("#{SessionClear::ENDPOINT}", {
@@ -144,7 +169,7 @@ module Bugsage
                   .then(function () { clearDashboardUi(); })
                   .catch(function (error) {
                     clearButton.disabled = false;
-                    window.alert(error.message || "Could not clear session logs.");
+                    window.alert(error.message || COULD_NOT_CLEAR);
                   });
                 return;
               }
@@ -163,13 +188,13 @@ module Bugsage
                 var fix = selectedFixText(actions);
                 var location = actions.dataset.location || "";
                 var prompt = [
-                  "BugSage quick fix",
-                  "Location: " + location,
-                  "Suggestion: " + fix
+                  QUICK_FIX_TITLE,
+                  QUICK_FIX_LOCATION.replace("%{location}", location),
+                  QUICK_FIX_SUGGESTION.replace("%{fix}", fix)
                 ].join("\\n");
                 clipboardCopy(prompt).then(function () {
-                  copyButton.textContent = "Copied!";
-                  setTimeout(function () { copyButton.textContent = "Copy Fix"; }, 1500);
+                  copyButton.textContent = COPIED;
+                  setTimeout(function () { copyButton.textContent = COPY_FIX; }, 1500);
                 });
                 return;
               }
@@ -181,11 +206,11 @@ module Bugsage
                 var fixText = selectedFixText(actionBar);
                 var fixLocation = actionBar.dataset.location || "";
                 if (!fixText) return;
-                if (!window.confirm("Apply this fix to the source file in development?")) return;
+                if (!window.confirm(CONFIRM_APPLY)) return;
 
                 var originalText = applyButton.textContent;
                 applyButton.disabled = true;
-                applyButton.textContent = "Applying...";
+                applyButton.textContent = APPLYING;
                 fetch("#{FixApplicator::ENDPOINT}", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -196,11 +221,11 @@ module Bugsage
                     applyButton.disabled = false;
                     applyButton.textContent = originalText;
                     if (!result.ok) {
-                      window.alert(result.error || "Could not apply fix.");
+                      window.alert(result.error || COULD_NOT_APPLY);
                       return;
                     }
 
-                    applyButton.textContent = "Applied!";
+                    applyButton.textContent = APPLIED;
                     setTimeout(function () { applyButton.textContent = originalText; }, 2000);
                   })
                   .catch(function (error) {

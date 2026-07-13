@@ -40,10 +40,10 @@ module Bugsage
 
       payload = parse_request_body(env)
       context = AiPanel.load_context(payload)
-      return json_response(error_response("AI context is not available for this error.")) unless context
+      return json_response(error_response(Bugsage.t("errors.ai_context_not_available"))) unless context
 
       message = payload["message"].to_s.strip
-      return json_response(error_response("Enter a message to send.")) if message.empty?
+      return json_response(error_response(Bugsage.t("errors.enter_message"))) if message.empty?
 
       history = normalize_history(payload["history"])
       result = chat(context, message, history)
@@ -95,7 +95,7 @@ module Bugsage
       reply = payload["notes"].to_s.strip if reply.empty?
 
       {
-        reply: reply.empty? ? "I updated the suggested fix." : reply,
+        reply: reply.empty? ? Bugsage.t("errors.default_chat_reply") : reply,
         code_patch: code_patch,
         code_fix: CodePatch.preview_for(code_patch)
       }
@@ -189,16 +189,16 @@ module Bugsage
         <div class="ai-loading-overlay hidden" id="bugsage-ai-loading#{suffix}" aria-hidden="true">
           <div class="ai-loading-card">
             <div class="ai-spinner" aria-hidden="true"></div>
-            <p class="ai-loading-title">BugSage AI is working</p>
-            <p class="ai-loading-step" id="bugsage-ai-loading-step#{suffix}">Reading source code...</p>
+            <p class="ai-loading-title">#{CodeContext.escape_html(Bugsage.t("ui.ai_chat.working_title"))}</p>
+            <p class="ai-loading-step" id="bugsage-ai-loading-step#{suffix}">#{CodeContext.escape_html(Bugsage.t("ui.ai_chat.reading_source"))}</p>
             <div class="ai-loading-bar"><span class="ai-loading-bar-fill"></span></div>
           </div>
         </div>
 
         <div class="ai-chat-panel hidden" id="bugsage-ai-chat#{suffix}"#{index_attr}>
           <div class="ai-chat-header">
-            <span>💬 Chat about this error</span>
-            <button type="button" class="ai-chat-close" aria-label="Close chat">&times;</button>
+            <span>#{CodeContext.escape_html(Bugsage.t("ui.ai_chat.chat_header"))}</span>
+            <button type="button" class="ai-chat-close" aria-label="#{CodeContext.escape_html(Bugsage.t("ui.ai_chat.close_chat_aria"))}">&times;</button>
           </div>
           <div class="ai-chat-messages" id="bugsage-ai-chat-messages#{suffix}" aria-live="polite"></div>
           <form class="ai-chat-form bugsage-ai-chat-form" data-output-target="#bugsage-ai-chat-messages#{suffix}">
@@ -207,9 +207,9 @@ module Bugsage
               type="text"
               name="message"
               autocomplete="off"
-              placeholder="Ask about the fix or request code changes..."
+              placeholder="#{CodeContext.escape_html(Bugsage.t("ui.ai_chat.input_placeholder"))}"
             />
-            <button type="submit" class="ai-chat-send">Send</button>
+            <button type="submit" class="ai-chat-send">#{CodeContext.escape_html(Bugsage.t("ui.ai_chat.send"))}</button>
           </form>
         </div>
       HTML
@@ -421,7 +421,7 @@ module Bugsage
     end
 
     def self.not_found
-      [404, { "Content-Type" => "text/plain" }, ["Not Found"]]
+      [404, { "Content-Type" => "text/plain" }, [Bugsage.t("common.not_found")]]
     end
   end
 end

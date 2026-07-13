@@ -11,7 +11,7 @@ module Bugsage
 
       payload = parse_request_body(env)
       context = load_context(payload)
-      return json_response(error_response("AI context is not available for this error.")) unless context
+      return json_response(error_response(Bugsage.t("errors.ai_context_not_available"))) unless context
 
       suggestion, ai_error = AiAnalyzer.enhance(
         context[:suggestion],
@@ -86,31 +86,31 @@ module Bugsage
       <<~HTML
         <div id="#{panel_id}" class="section ai-panel"#{index_attr}#{location_data}#{code_patch_data}>
           <div class="ai-panel-header">
-            <div class="label">AI Suggestions</div>
+            <div class="label">#{CodeContext.escape_html(Bugsage.t("ui.ai_panel.ai_suggestions"))}</div>
             <div class="ai-panel-header-actions">
-              <button type="button" class="ai-chat-toggle bugsage-ai-chat-toggle" title="Chat about this error" aria-label="Chat about this error">💬</button>
+              <button type="button" class="ai-chat-toggle bugsage-ai-chat-toggle" title="#{CodeContext.escape_html(Bugsage.t("ui.ai_panel.chat_about_error_title"))}" aria-label="#{CodeContext.escape_html(Bugsage.t("ui.ai_panel.chat_about_error_aria"))}">💬</button>
               <label class="ai-toggle">
                 <input type="checkbox" class="bugsage-ai-toggle" checked>
-                <span>Enable AI</span>
+                <span>#{CodeContext.escape_html(Bugsage.t("ui.ai_panel.enable_ai"))}</span>
               </label>
             </div>
           </div>
           #{AiChat.render_widget(suffix: suffix, bug_index: bug_index)}
           <p class="ai-panel-help">
-            Rule-based analysis loads instantly. Click below when you want AI-enhanced fixes.
+            #{CodeContext.escape_html(Bugsage.t("ui.ai_panel.help"))}
           </p>
           <button type="button" class="quick-fix-button bugsage-quick-fix"#{" hidden" if enhanced}>
-            Quick Fix Suggestion
+            #{CodeContext.escape_html(Bugsage.t("ui.ai_panel.quick_fix_suggestion"))}
           </button>
           <div class="ai-apply-row#{" hidden" unless patch_available}">
             <button type="button" class="apply-ai-button bugsage-apply-ai-codebase">
-              Apply AI to Codebase
+              #{CodeContext.escape_html(Bugsage.t("ui.ai_panel.apply_ai_to_codebase"))}
             </button>
             <label class="editor-preference">
-              <span>Open in</span>
+              <span>#{CodeContext.escape_html(Bugsage.t("ui.ai_panel.open_in"))}</span>
               <select class="bugsage-editor-preference">
-                <option value="cursor">Cursor</option>
-                <option value="vscode">VS Code</option>
+                <option value="cursor">#{CodeContext.escape_html(Bugsage.t("ui.ai_panel.cursor"))}</option>
+                <option value="vscode">#{CodeContext.escape_html(Bugsage.t("ui.ai_panel.vscode"))}</option>
               </select>
             </label>
           </div>
@@ -252,6 +252,8 @@ module Bugsage
     end
 
     def self.render_script
+      loading_steps = Bugsage.t("ui.ai_panel.loading_steps")
+
       <<~HTML
         <script>
           (function () {
@@ -260,12 +262,20 @@ module Bugsage
 
             var STORAGE_KEY = "bugsage-ai-enabled";
             var EDITOR_KEY = "bugsage-preferred-editor";
-            var LOADING_STEPS = [
-              "Reading source code...",
-              "Analyzing exception...",
-              "Generating fix suggestion...",
-              "Almost there..."
-            ];
+            var LOADING_STEPS = #{JSON.generate(loading_steps)};
+            var THINKING = #{JSON.generate(Bugsage.t("ui.ai_panel.thinking"))};
+            var CHAT_REQUEST_FAILED = #{JSON.generate(Bugsage.t("ui.ai_panel.chat_request_failed"))};
+            var CODE_PATCH_UPDATED = #{JSON.generate(Bugsage.t("ui.ai_panel.code_patch_updated"))};
+            var CONFIRM_APPLY_AI = #{JSON.generate(Bugsage.t("ui.ai_panel.confirm_apply_ai"))};
+            var APPLYING = #{JSON.generate(Bugsage.t("ui.ai_panel.applying"))};
+            var COULD_NOT_APPLY_AI = #{JSON.generate(Bugsage.t("ui.ai_panel.could_not_apply_ai"))};
+            var APPLIED = #{JSON.generate(Bugsage.t("ui.ai_panel.applied"))};
+            var NO_CODE_CHANGE = #{JSON.generate(Bugsage.t("code_patch.no_change"))};
+            var REQUESTING_AI = #{JSON.generate(Bugsage.t("ui.ai_panel.requesting_ai"))};
+            var AI_ENHANCED_APPLIED = #{JSON.generate(Bugsage.t("ui.ai_panel.ai_enhanced_applied"))};
+            var SUGGESTION_UPDATED = #{JSON.generate(Bugsage.t("ui.ai_panel.suggestion_updated"))};
+            var CONFIDENCE_SUFFIX = #{JSON.generate(Bugsage.t("ui.ai_panel.confidence_suffix"))};
+            var ASSISTANT_WELCOME = #{JSON.generate(Bugsage.t("ui.ai_panel.assistant_welcome"))};
             var chatHistories = {};
 
             function aiEnabled() {
@@ -373,7 +383,7 @@ module Bugsage
               input.disabled = true;
               if (sendButton) sendButton.disabled = true;
 
-              var loadingBubble = appendChatBubble(messages, "loading", "Thinking...");
+              var loadingBubble = appendChatBubble(messages, "loading", THINKING);
 
               var payload = { message: message, history: history };
               if (panel.dataset.bugIndex !== undefined) {
@@ -393,7 +403,7 @@ module Bugsage
                   input.focus();
 
                   if (!result.ok) {
-                    appendChatBubble(messages, "assistant", result.error || "Chat request failed.");
+                    appendChatBubble(messages, "assistant", result.error || CHAT_REQUEST_FAILED);
                     return;
                   }
 
@@ -404,7 +414,7 @@ module Bugsage
                     revealAiApply(panel, result);
                     var targets = panelTargets(panel);
                     if (targets && targets.status) {
-                      targets.status.textContent = "Code patch updated from chat. Review the preview before applying.";
+                      targets.status.textContent = CODE_PATCH_UPDATED;
                       targets.status.className = "ai-status";
                     }
                   }
@@ -438,7 +448,7 @@ module Bugsage
               if (result.code_patch && result.code_patch.action === "no_change") {
                 if (applyRow) applyRow.classList.add("hidden");
                 if (preview) {
-                  preview.textContent = result.code_fix || "No code change required.";
+                  preview.textContent = result.code_fix || NO_CODE_CHANGE;
                   preview.classList.remove("hidden");
                 }
                 return;
@@ -461,11 +471,11 @@ module Bugsage
               }
               if (!location || !codePatch) return;
 
-              if (!window.confirm("Apply this AI suggestion directly to your codebase?")) return;
+              if (!window.confirm(CONFIRM_APPLY_AI)) return;
 
               var originalText = button.textContent;
               button.disabled = true;
-              button.textContent = "Applying...";
+              button.textContent = APPLYING;
 
               fetch("#{FixApplicator::ENDPOINT}", {
                 method: "POST",
@@ -480,7 +490,7 @@ module Bugsage
                   button.disabled = false;
                   button.textContent = originalText;
                   if (!result.ok) {
-                    window.alert(result.error || "Could not apply AI fix.");
+                    window.alert(result.error || COULD_NOT_APPLY_AI);
                     return;
                   }
 
@@ -491,7 +501,7 @@ module Bugsage
                   var editorUrl = result.editor_links && result.editor_links[choice];
                   if (editorUrl) openEditorUrl(editorUrl);
 
-                  button.textContent = "Applied!";
+                  button.textContent = APPLIED;
                   setTimeout(function () { button.textContent = originalText; }, 2000);
                 })
                 .catch(function (error) {
@@ -595,7 +605,7 @@ module Bugsage
               if (!targets || !targets.status) return;
 
               button.disabled = true;
-              targets.status.textContent = "Requesting AI suggestion...";
+              targets.status.textContent = REQUESTING_AI;
               targets.status.className = "ai-status loading";
               showLoading(panel);
 
@@ -649,7 +659,7 @@ module Bugsage
                   if (targets.confidence) {
                     var confidenceText = result.confidence + "%";
                     if (targets.confidence.classList.contains("confidence-badge")) {
-                      confidenceText += " confidence";
+                      confidenceText += CONFIDENCE_SUFFIX;
                     }
                     targets.confidence.textContent = confidenceText;
                   }
@@ -664,8 +674,8 @@ module Bugsage
                   }
 
                   targets.status.textContent = result.ai_enhanced
-                    ? "AI-enhanced suggestion applied."
-                    : "Suggestion updated.";
+                    ? AI_ENHANCED_APPLIED
+                    : SUGGESTION_UPDATED;
                   targets.status.className = "ai-status";
                   button.classList.add("hidden");
 
@@ -676,7 +686,7 @@ module Bugsage
                       appendChatBubble(
                         messages,
                         "assistant",
-                        "AI suggestion is ready. Ask me to explain the fix, suggest alternatives, or refine the code change."
+                        ASSISTANT_WELCOME
                       );
                     }
                   }
@@ -714,7 +724,7 @@ module Bugsage
     end
 
     def self.not_found
-      [404, { "Content-Type" => "text/plain" }, ["Not Found"]]
+      [404, { "Content-Type" => "text/plain" }, [Bugsage.t("common.not_found")]]
     end
   end
 end

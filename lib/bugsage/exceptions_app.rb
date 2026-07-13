@@ -25,7 +25,7 @@ module Bugsage
       fallback = Bugsage.configuration.fallback_exceptions_app
       return fallback.call(env) if fallback
 
-      [500, { "Content-Type" => "text/html" }, ["<h1>BugSage could not classify this exception.</h1>"]]
+      [500, { "Content-Type" => "text/html" }, ["<h1>#{Bugsage.t("ui.exceptions_app.unclassified")}</h1>"]]
     end
   end
 end
