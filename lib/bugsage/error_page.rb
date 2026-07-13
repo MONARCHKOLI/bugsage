@@ -104,6 +104,7 @@ module Bugsage
               color: #f38ba8;
               font-weight: bold;
             }
+            #{InlineConsole.styles}
             .section {
               margin-top: 24px;
             }
@@ -211,6 +212,8 @@ module Bugsage
               <strong>Error Message:</strong><br>
               #{CodeContext.escape_html(suggestion.root_cause)}
             </div>
+
+            #{InlineConsole.render_panel}
 
             #{render_request_context(context)}
 

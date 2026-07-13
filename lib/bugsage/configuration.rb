@@ -7,6 +7,7 @@ module Bugsage
     attr_accessor :enabled_environments,
                   :show_error_page,
                   :show_dashboard,
+                  :show_inline_console,
                   :capture_errors,
                   :ai_enabled,
                   :ai_provider,
@@ -24,6 +25,7 @@ module Bugsage
       @enabled_environments = %i[development test]
       @show_error_page = nil
       @show_dashboard = nil
+      @show_inline_console = nil
       @capture_errors = true
       @ai_enabled = false
       @ai_provider = nil
@@ -50,6 +52,12 @@ module Bugsage
 
     def show_dashboard?(environment = current_environment)
       return show_dashboard unless show_dashboard.nil?
+
+      environment.to_s == "development"
+    end
+
+    def show_inline_console?(environment = current_environment)
+      return show_inline_console unless show_inline_console.nil?
 
       environment.to_s == "development"
     end

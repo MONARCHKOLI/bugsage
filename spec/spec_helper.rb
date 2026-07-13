@@ -7,6 +7,7 @@ Dir[File.expand_path("support/**/*.rb", __dir__)].each { |file| require file }
 RSpec.configure do |config|
   config.before do
     Bugsage.reset_configuration!
+    Bugsage::ConsoleContext.clear!
   end
 
   # Enable flags like --only-failures and --next-failure

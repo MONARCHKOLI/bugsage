@@ -35,6 +35,7 @@ module Bugsage
             <main class="detail-panel">
               #{suggestions.empty? ? render_empty_detail : suggestions.map.with_index { |event, index| render_detail(event, index) }.join}
               #{render_detail_script unless suggestions.empty?}
+              #{InlineConsole.render_script if Bugsage.configuration.show_inline_console? && !suggestions.empty?}
             </main>
           </div>
         </body>
@@ -97,12 +98,14 @@ module Bugsage
             <span><strong>Time:</strong> #{CodeContext.escape_html(event[:timestamp])}</span>
           </div>
 
+          #{code_context}
+
           <div class="message-box">
-            <strong>Error message</strong>
+            <strong>Error Message:</strong>
             <p>#{CodeContext.escape_html(event[:root_cause])}</p>
           </div>
 
-          #{code_context}
+          #{InlineConsole.render_panel(bug_index: index, include_script: false)}
 
           <div class="detail-grid">
             <div class="detail-section">
@@ -455,13 +458,21 @@ module Bugsage
           padding: 16px;
           border-radius: 4px;
           margin-bottom: 20px;
+          color: #f5c2e7;
         }
         .message-box strong {
           display: block;
-          color: #f5c2e7;
           margin-bottom: 8px;
         }
         .message-box p { margin: 0; }
+        .inline-console .label {
+          color: #89b4fa;
+          text-transform: uppercase;
+          font-size: 11px;
+          letter-spacing: 2px;
+          margin-bottom: 12px;
+          font-weight: bold;
+        }
         .code-section {
           background: #1e1e2e;
           border-radius: 8px;
@@ -574,6 +585,7 @@ module Bugsage
           word-break: break-word;
           font-size: 13px;
         }
+        #{InlineConsole.styles}
         @media (max-width: 900px) {
           .dashboard { grid-template-columns: 1fr; }
           .sidebar { min-height: auto; border-right: none; border-bottom: 1px solid #45475a; }

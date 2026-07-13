@@ -50,7 +50,7 @@ module Bugsage
     def read_file_lines(file_path)
       return nil unless file_path && File.exist?(file_path)
 
-      File.readlines(file_path)
+      File.readlines(file_path, chomp: true)
     rescue StandardError
       nil
     end

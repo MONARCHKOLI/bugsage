@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tempfile"
+require "stringio"
 unless defined?(ActionController::RoutingError)
   module ActionController
     class RoutingError < StandardError; end
@@ -399,6 +401,13 @@ RSpec.describe Bugsage do
 
       expect(config.show_dashboard?("development")).to be true
       expect(config.show_dashboard?("test")).to be false
+    end
+
+    it "shows the inline console only in development by default" do
+      config = described_class.new
+
+      expect(config.show_inline_console?("development")).to be true
+      expect(config.show_inline_console?("test")).to be false
     end
 
     it "allows custom configuration through Bugsage.configure" do
@@ -848,6 +857,135 @@ RSpec.describe Bugsage do
       expect(status).to eq(404)
       expect(Bugsage::Store.all.first[:issue]).to eq("ActionController::RoutingError")
       expect(body.join).to include("BugSage caught")
+    end
+  end
+
+  describe Bugsage::InlineConsole do
+    before do
+      Bugsage::ConsoleContext.set(
+        exception: NoMethodError.new("undefined method `name' for nil"),
+        context: { "Request parameters" => { "id" => "1" } }
+      )
+    end
+
+    it "evaluates Ruby with access to the current exception" do
+      result = described_class.evaluate("exception.class.name")
+
+      expect(result[:ok]).to be true
+      expect(result[:output]).to include("NoMethodError")
+    end
+
+    it "exposes request params in the console binding" do
+      result = described_class.evaluate("params['id']")
+
+      expect(result[:ok]).to be true
+      expect(result[:output]).to include("1")
+    end
+
+    it "returns syntax errors without raising" do
+      result = described_class.evaluate("def broken")
+
+      expect(result[:ok]).to be false
+      expect(result[:output]).to include("SyntaxError")
+    end
+  end
+
+  describe Bugsage::ErrorPage do
+    it "includes the inline console below the error message in development by default" do
+      suggestion = Bugsage::Suggestion.new(
+        issue: "NoMethodError",
+        location: "app/models/user.rb:12",
+        root_cause: "undefined method `name' for nil",
+        fixes: ["Add nil guard"],
+        confidence: 95
+      )
+
+      ENV["RAILS_ENV"] = "development"
+      Bugsage.reset_configuration!
+
+      html = described_class.render(suggestion)
+      message_index = html.index("Error Message:")
+      console_index = html.index("Inline Rails Console")
+
+      expect(html).to include("Inline Rails Console")
+      expect(html).to include("/bugsage/console")
+      expect(console_index).to be > message_index
+    ensure
+      ENV.delete("RAILS_ENV")
+    end
+  end
+
+  describe Bugsage::Dashboard do
+    it "includes the inline console in each error detail panel" do
+      ENV["RAILS_ENV"] = "development"
+      Bugsage.reset_configuration!
+
+      events = [{
+        issue: "NoMethodError",
+        location: "app/models/user.rb:12",
+        root_cause: "undefined method `name' for nil",
+        fixes: ["Add nil guard"],
+        confidence: 95,
+        exception_class: "NoMethodError",
+        exception_message: "undefined method `name' for nil",
+        context: { "Request parameters" => { "id" => "1" } },
+        timestamp: "2026-07-13T00:00:00Z"
+      }]
+
+      html = described_class.render(events)
+
+      expect(html).to include("Inline Rails Console")
+      expect(html).to include('data-bug-index="0"')
+      expect(html).to include("bugsage-console-output-bug-0")
+    ensure
+      ENV.delete("RAILS_ENV")
+    end
+  end
+
+  describe "inline console middleware" do
+    around do |example|
+      original = ENV.fetch("RAILS_ENV", nil)
+      ENV["RAILS_ENV"] = "development"
+      example.run
+    ensure
+      if original
+        ENV["RAILS_ENV"] = original
+      else
+        ENV.delete("RAILS_ENV")
+      end
+    end
+
+    it "handles POST /bugsage/console requests using a stored event index" do
+      Bugsage.configure do |config|
+        config.show_inline_console = true
+      end
+
+      Bugsage::Store.clear!
+      Bugsage::Store.add(
+        Bugsage::Suggestion.new(
+          issue: "NoMethodError",
+          location: "app/models/user.rb:12",
+          root_cause: "undefined method `foo' for nil",
+          fixes: ["Add nil guard"],
+          confidence: 95
+        ),
+        { "Request parameters" => { "id" => "1" } },
+        exception: NoMethodError.new("undefined method `foo' for nil")
+      )
+
+      env = {
+        "REQUEST_METHOD" => "POST",
+        "PATH_INFO" => "/bugsage/console",
+        "rack.input" => StringIO.new('{"code":"params[\\"id\\"]","index":0}')
+      }
+
+      status, headers, body = Bugsage::Middleware.new(->(_env) { [404, {}, []] }).call(env)
+      payload = JSON.parse(body.join)
+
+      expect(status).to eq(200)
+      expect(headers["Content-Type"]).to eq("application/json")
+      expect(payload["ok"]).to be true
+      expect(payload["output"]).to include("1")
     end
   end
 end

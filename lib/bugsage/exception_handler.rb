@@ -32,7 +32,8 @@ module Bugsage
         suggestion, ai_error = AiAnalyzer.enhance(suggestion, exception, context)
       end
 
-      Store.add(suggestion, context, ai_error: ai_error) if config.capture_errors?
+      Store.add(suggestion, context, ai_error: ai_error, exception: exception) if config.capture_errors?
+      ConsoleContext.set(exception: exception, context: context) if config.show_inline_console?
 
       return unless render && config.show_error_page?
 

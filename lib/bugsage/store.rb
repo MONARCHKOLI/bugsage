@@ -25,6 +25,8 @@ module Bugsage
     end
 
     def self.build_event(suggestion, context, metadata = {})
+      exception = metadata[:exception]
+
       {
         issue: suggestion.issue,
         location: suggestion.location,
@@ -34,6 +36,8 @@ module Bugsage
         source: suggestion.source,
         ai_notes: suggestion.ai_notes,
         ai_error: metadata[:ai_error],
+        exception_class: exception&.class&.name,
+        exception_message: exception&.message.to_s,
         context: context,
         timestamp: Time.now.utc.iso8601
       }

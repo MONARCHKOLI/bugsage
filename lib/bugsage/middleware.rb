@@ -10,6 +10,7 @@ module Bugsage
 
     def call(env)
       return handle_dashboard(env) if dashboard_request?(env)
+      return InlineConsole.handle_request(env) if console_request?(env)
       return @app.call(env) unless Bugsage.configuration.enabled?
 
       status, headers, body = @app.call(env)
@@ -44,6 +45,10 @@ module Bugsage
     def dashboard_request?(env)
       path = env["PATH_INFO"].to_s
       path == "/bugsage" || path == "/bugsage/"
+    end
+
+    def console_request?(env)
+      env["REQUEST_METHOD"] == "POST" && env["PATH_INFO"] == "/bugsage/console"
     end
 
     def capture_routing_error(env, headers)
