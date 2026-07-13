@@ -16,34 +16,98 @@ It uses deterministic rules first, with optional AI-powered refinement when enab
 
 ## Installation
 
-Add this line to your application's Gemfile:
+### Quick start (zero-config)
+
+**1. Add the gem to your Gemfile**
 
 ```ruby
 gem "bugsage"
 ```
 
-Then run:
+**2. Install dependencies**
 
 ```bash
 bundle install
 ```
 
-BugSage auto-wires itself through a Rails Railtie. You do **not** need to manually add middleware or change `routes.rb`.
+**3. Start your Rails server**
+
+```bash
+bin/rails server
+```
+
+**4. Trigger an error in development**
+
+Visit any route that raises an exception. You should see the BugSage error page.
+
+**5. Open the session dashboard**
+
+```text
+http://localhost:3000/bugsage
+```
+
+No `routes.rb` changes, no middleware setup, and no `application.rb` edits are required. BugSage auto-wires everything through its Rails Railtie.
+
+### What gets auto-wired on boot
+
+- Exception capture middleware
+- BugSage HTML error pages in development
+- Session dashboard at `/bugsage`
+- Inline Rails console at `/bugsage/console`
+- Routing error capture via `exceptions_app`
+- AI provider auto-detection when API keys are present
+
+### Optional steps
+
+**Generate a commented initializer** (only if you want custom overrides):
+
+```bash
+bundle exec rails generate bugsage:install
+```
+
+Or print the install guide and create the initializer:
+
+```bash
+bundle exec bugsage install
+```
+
+Print the guide without writing files:
+
+```bash
+bundle exec bugsage install --guide-only
+```
+
+**Enable AI-enhanced suggestions** (optional):
+
+```bash
+export OPENAI_API_KEY=sk-your-openai-key-here
+# or
+export CURSOR_API_KEY=crsr_your-cursor-key-here
+bin/rails server
+```
+
+BugSage auto-detects the provider from the key prefix (`sk-...` → OpenAI, `crsr_...` → Cursor).
+
+**Control enabled environments** (optional):
+
+```bash
+export BUGSAGE_ENABLED_ENVIRONMENTS=development,test,staging
+```
+
+Defaults to `development` and `test`.
+
+The canonical install steps live in `lib/bugsage/installation.rb` (`Bugsage::Installation`).
 
 ## Configuration
 
-Configure BugSage in `config/application.rb` (or an initializer) using `config.bugsage`:
+BugSage works with zero configuration. Override defaults only when needed in `config/initializers/bugsage.rb` or `config/application.rb`:
 
 ```ruby
-# config/application.rb
-module YourApp
-  class Application < Rails::Application
-    config.bugsage.enabled_environments = %i[development test]
-    config.bugsage.show_error_page = true
-    config.bugsage.show_dashboard = true
-    config.bugsage.capture_errors = true
-    config.bugsage.ai_enabled = false
-  end
+# config/initializers/bugsage.rb
+Rails.application.configure do |config|
+  config.bugsage.enabled_environments = %i[development test staging]
+  config.bugsage.ai_enabled = true
+  config.bugsage.ai_provider = :cursor
 end
 ```
 
@@ -64,7 +128,7 @@ end
 | `show_error_page` | `true` in development only | Replace errors with the BugSage HTML page |
 | `show_dashboard` | `true` in development only | Serve the `/bugsage` session dashboard |
 | `capture_errors` | `true` | Store caught errors in the in-memory session store |
-| `ai_enabled` | `false` | Refine rule-based suggestions with AI |
+| `ai_enabled` | auto (`true` when an API key is present) | Refine rule-based suggestions with AI |
 | `ai_provider` | auto-detected | `:openai` or `:cursor` (auto-detects `crsr_` keys) |
 | `openai_api_key` | `nil` (falls back to env) | OpenAI API key (`sk-...`) |
 | `openai_model` | `gpt-4o-mini` | Model used for OpenAI analysis |

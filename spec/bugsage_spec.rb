@@ -2,6 +2,7 @@
 
 require "tempfile"
 require "stringio"
+require "fileutils"
 unless defined?(ActionController::RoutingError)
   module ActionController
     class RoutingError < StandardError; end
@@ -467,6 +468,91 @@ RSpec.describe Bugsage do
       config.ai_timeout = 15
 
       expect(config.effective_ai_timeout).to eq(90)
+    end
+
+    it "keeps AI off by default when no API key is present" do
+      config = described_class.new
+
+      expect(config.ai_enabled).to be_nil
+      expect(config.ai_enabled?("development")).to be false
+    end
+  end
+
+  describe Bugsage::AutoConfigurator do
+    it "enables AI when an OpenAI key is present in the environment" do
+      config = Bugsage::Configuration.new
+      env = { "OPENAI_API_KEY" => "sk-test-openai-key" }
+
+      described_class.apply!(config, env: env)
+
+      expect(config.ai_enabled).to be true
+      expect(config.resolved_ai_provider).to eq(:openai)
+      expect(config.ai_enabled?("development")).to be true
+    end
+
+    it "enables Cursor when a crsr_ key is exported as OPENAI_API_KEY" do
+      config = Bugsage::Configuration.new
+      env = { "OPENAI_API_KEY" => "crsr_test_cursor_key" }
+
+      described_class.apply!(config, env: env)
+
+      expect(config.ai_enabled).to be true
+      expect(config.resolved_ai_provider).to eq(:cursor)
+      expect(config.cursor_api_key).to eq("crsr_test_cursor_key")
+    end
+
+    it "does not override an explicit ai_enabled = false" do
+      config = Bugsage::Configuration.new
+      config.ai_enabled = false
+      env = { "OPENAI_API_KEY" => "sk-test-openai-key" }
+
+      described_class.apply!(config, env: env)
+
+      expect(config.ai_enabled).to be false
+      expect(config.ai_enabled?("development")).to be false
+    end
+
+    it "applies enabled environments from BUGSAGE_ENABLED_ENVIRONMENTS" do
+      config = Bugsage::Configuration.new
+      env = { "BUGSAGE_ENABLED_ENVIRONMENTS" => "development,staging" }
+
+      described_class.apply!(config, env: env)
+
+      expect(config.enabled_environments).to eq(%i[development staging])
+    end
+  end
+
+  describe Bugsage::Installation do
+    it "documents the Rails install steps" do
+      guide = described_class.guide_lines.join("\n")
+
+      expect(described_class::STEPS.length).to eq(5)
+      expect(guide).to include('gem "bugsage"')
+      expect(guide).to include("bundle install")
+      expect(guide).to include("/bugsage")
+      expect(guide).to include("OPENAI_API_KEY")
+    end
+  end
+
+  describe Bugsage::Installer do
+    it "creates an initializer in a Rails app directory" do
+      Dir.mktmpdir do |root|
+        FileUtils.mkdir_p(File.join(root, "config"))
+        File.write(File.join(root, "config/application.rb"), "class Application < Rails::Application; end\n")
+
+        result = described_class.run(destination: root)
+
+        expect(result[:created_initializer]).to be true
+        expect(File).to exist(File.join(root, "config/initializers/bugsage.rb"))
+        expect(result[:summary].join).to include("BugSage is ready to use.")
+      end
+    end
+
+    it "raises when the destination is not a Rails app" do
+      Dir.mktmpdir do |root|
+        expect { described_class.run(destination: root) }
+          .to raise_error(Bugsage::Error, /Could not find a Rails app/)
+      end
     end
   end
 

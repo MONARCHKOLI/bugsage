@@ -1,5 +1,13 @@
 # frozen_string_literal: true
 
+# BugSage Rails integration.
+#
+# Installation (zero-config):
+#   1. gem "bugsage" in Gemfile
+#   2. bundle install
+#   3. bin/rails server
+#
+# See Bugsage::Installation for the full guide.
 module Bugsage
   class Railtie < Rails::Railtie
     config.bugsage = ActiveSupport::OrderedOptions.new
@@ -12,6 +20,8 @@ module Bugsage
           end
         end
       end
+
+      Bugsage::AutoConfigurator.apply!
     end
 
     initializer "bugsage.middleware" do |app|

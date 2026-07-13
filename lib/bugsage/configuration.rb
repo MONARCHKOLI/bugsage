@@ -27,7 +27,7 @@ module Bugsage
       @show_dashboard = nil
       @show_inline_console = nil
       @capture_errors = true
-      @ai_enabled = false
+      @ai_enabled = nil
       @ai_provider = nil
       @openai_api_key = nil
       @openai_model = "gpt-4o-mini"
@@ -70,8 +70,13 @@ module Bugsage
 
     def ai_enabled?(environment = current_environment)
       return false unless enabled?(environment)
+      return ai_enabled unless ai_enabled.nil?
 
-      ai_enabled
+      credential_available?
+    end
+
+    def credential_available?
+      !resolved_openai_api_key.to_s.strip.empty? || !resolved_cursor_api_key.to_s.strip.empty?
     end
 
     def ai_configured?(environment = current_environment)
