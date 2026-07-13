@@ -2,14 +2,20 @@
 
 module Bugsage
   class Configuration
+    AI_PROVIDERS = %i[openai cursor].freeze
+
     attr_accessor :enabled_environments,
                   :show_error_page,
                   :show_dashboard,
                   :capture_errors,
                   :ai_enabled,
+                  :ai_provider,
                   :openai_api_key,
                   :openai_model,
                   :openai_api_base,
+                  :cursor_api_key,
+                  :cursor_model,
+                  :cursor_api_base,
                   :ai_timeout,
                   :ai_client,
                   :fallback_exceptions_app
@@ -20,9 +26,13 @@ module Bugsage
       @show_dashboard = nil
       @capture_errors = true
       @ai_enabled = false
+      @ai_provider = nil
       @openai_api_key = nil
       @openai_model = "gpt-4o-mini"
       @openai_api_base = "https://api.openai.com/v1"
+      @cursor_api_key = nil
+      @cursor_model = nil
+      @cursor_api_base = "https://api.cursor.com"
       @ai_timeout = 15
       @ai_client = nil
       @fallback_exceptions_app = nil
@@ -59,11 +69,46 @@ module Bugsage
     def ai_configured?(environment = current_environment)
       return false unless ai_enabled?(environment)
 
-      !ai_client.nil? || !resolved_openai_api_key.to_s.strip.empty?
+      return true unless ai_client.nil?
+
+      case resolved_ai_provider
+      when :cursor
+        !resolved_cursor_api_key.to_s.strip.empty?
+      else
+        !resolved_openai_api_key.to_s.strip.empty?
+      end
+    end
+
+    def resolved_ai_provider
+      provider = ai_provider&.to_sym
+      return provider if provider && AI_PROVIDERS.include?(provider)
+
+      return :cursor if resolved_cursor_api_key.to_s.start_with?("crsr_")
+
+      :openai
     end
 
     def resolved_openai_api_key
-      openai_api_key || ENV["OPENAI_API_KEY"] || ENV["BUGSAGE_OPENAI_API_KEY"]
+      key = openai_api_key || ENV["OPENAI_API_KEY"] || ENV["BUGSAGE_OPENAI_API_KEY"]
+      return nil if key.to_s.start_with?("crsr_")
+
+      key
+    end
+
+    def resolved_cursor_api_key
+      explicit = cursor_api_key || ENV["CURSOR_API_KEY"] || ENV["BUGSAGE_CURSOR_API_KEY"]
+      return explicit if explicit.to_s.start_with?("crsr_")
+
+      misrouted = openai_api_key || ENV["OPENAI_API_KEY"] || ENV["BUGSAGE_OPENAI_API_KEY"]
+      return misrouted if misrouted.to_s.start_with?("crsr_")
+
+      explicit
+    end
+
+    def effective_ai_timeout
+      return [ai_timeout, 90].max if resolved_ai_provider == :cursor
+
+      ai_timeout
     end
 
     def current_environment

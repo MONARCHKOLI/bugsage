@@ -11,6 +11,8 @@ module Bugsage
     end
 
     def complete(system_prompt:, user_prompt:)
+      validate_api_key!
+
       uri = URI.join(api_base, "chat/completions")
       request = Net::HTTP::Post.new(uri)
       request["Authorization"] = "Bearer #{@config.resolved_openai_api_key}"
@@ -49,6 +51,17 @@ module Bugsage
     def api_base
       base = @config.openai_api_base.to_s
       base.end_with?("/") ? base : "#{base}/"
+    end
+
+    def validate_api_key!
+      key = @config.resolved_openai_api_key.to_s
+      return if key.strip.empty?
+
+      return unless key.start_with?("crsr_")
+
+      raise Error,
+            "A Cursor API key was provided, but the OpenAI provider is selected. " \
+            "Set config.bugsage.ai_provider = :cursor or use CURSOR_API_KEY."
     end
 
     def error_message_for(response)

@@ -440,6 +440,25 @@ RSpec.describe Bugsage do
     ensure
       ENV.delete("BUGSAGE_OPENAI_API_KEY")
     end
+
+    it "auto-detects Cursor when a crsr_ key is exported as OPENAI_API_KEY" do
+      config = described_class.new
+      config.ai_enabled = true
+      config.openai_api_key = "crsr_test_cursor_key"
+
+      expect(config.resolved_ai_provider).to eq(:cursor)
+      expect(config.resolved_cursor_api_key).to eq("crsr_test_cursor_key")
+      expect(config.resolved_openai_api_key).to be_nil
+      expect(config.ai_configured?("development")).to be true
+    end
+
+    it "uses a longer effective timeout for Cursor" do
+      config = described_class.new
+      config.ai_provider = :cursor
+      config.ai_timeout = 15
+
+      expect(config.effective_ai_timeout).to eq(90)
+    end
   end
 
   describe Bugsage::Suggestion do
@@ -544,6 +563,45 @@ RSpec.describe Bugsage do
       expect(result).to equal(base_suggestion)
       expect(result.source).to eq(:rules)
       expect(ai_error).to eq("API unavailable")
+    end
+
+    it "parses JSON wrapped in markdown fences" do
+      Bugsage.configure do |config|
+        config.ai_enabled = true
+        config.openai_api_key = "test-key"
+      end
+
+      markdown_client = Class.new do
+        def complete(system_prompt:, user_prompt:)
+          <<~JSON
+            ```json
+            {
+              "root_cause": "Markdown wrapped response",
+              "fixes": ["Fix from markdown"],
+              "confidence": 88,
+              "notes": "Parsed successfully"
+            }
+            ```
+          JSON
+        end
+      end.new
+
+      result, ai_error = described_class.enhance(base_suggestion, exception, {}, client: markdown_client)
+
+      expect(result.source).to eq(:hybrid)
+      expect(result.root_cause).to eq("Markdown wrapped response")
+      expect(ai_error).to be_nil
+    end
+
+    it "selects the Cursor client when a crsr_ key is configured" do
+      analyzer = described_class.new(
+        config: Bugsage::Configuration.new.tap do |config|
+          config.ai_enabled = true
+          config.cursor_api_key = "crsr_test"
+        end
+      )
+
+      expect(analyzer.send(:build_client)).to be_a(Bugsage::CursorClient)
     end
   end
 

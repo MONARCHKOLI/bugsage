@@ -64,11 +64,15 @@ end
 | `show_error_page` | `true` in development only | Replace errors with the BugSage HTML page |
 | `show_dashboard` | `true` in development only | Serve the `/bugsage` session dashboard |
 | `capture_errors` | `true` | Store caught errors in the in-memory session store |
-| `ai_enabled` | `false` | Refine rule-based suggestions with OpenAI |
-| `openai_api_key` | `nil` (falls back to env) | OpenAI API key |
-| `openai_model` | `gpt-4o-mini` | Model used for AI analysis |
+| `ai_enabled` | `false` | Refine rule-based suggestions with AI |
+| `ai_provider` | auto-detected | `:openai` or `:cursor` (auto-detects `crsr_` keys) |
+| `openai_api_key` | `nil` (falls back to env) | OpenAI API key (`sk-...`) |
+| `openai_model` | `gpt-4o-mini` | Model used for OpenAI analysis |
 | `openai_api_base` | `https://api.openai.com/v1` | OpenAI-compatible API base URL |
-| `ai_timeout` | `15` | OpenAI request timeout in seconds |
+| `cursor_api_key` | `nil` (falls back to env) | Cursor API key (`crsr_...`) |
+| `cursor_model` | `nil` (account default) | Cursor Cloud Agents model; omit to use your account default |
+| `cursor_api_base` | `https://api.cursor.com` | Cursor API base URL |
+| `ai_timeout` | `15` (`90` minimum for Cursor) | Request/poll timeout in seconds |
 | `ai_client` | `nil` | Custom AI client (for testing or alternate providers) |
 
 ### Default behavior by environment
@@ -86,18 +90,41 @@ Restart the Rails server after changing configuration.
 When `ai_enabled` is `true` and an API key is available, BugSage:
 
 1. Runs deterministic rules first (fast, offline)
-2. Sends exception details and request context to OpenAI
+2. Sends exception details and request context to the configured AI provider
 3. Merges AI output into the suggestion (refined root cause, extra fixes, notes)
 4. Falls back to rules-only if the API call fails
 
-Set your API key via environment variable:
+#### OpenAI
 
 ```bash
-export OPENAI_API_KEY=sk-your-key-here
+export OPENAI_API_KEY=sk-your-openai-key-here
 bin/rails server
 ```
 
-BugSage also reads `BUGSAGE_OPENAI_API_KEY`. The key must be available in the **same terminal** that starts the Rails server.
+BugSage also reads `BUGSAGE_OPENAI_API_KEY`.
+
+#### Cursor
+
+If you only have a Cursor API key (`crsr_...`), BugSage can use the [Cursor Cloud Agents API](https://cursor.com/docs/cloud-agent/api/endpoints):
+
+```bash
+export CURSOR_API_KEY=crsr_your-cursor-key-here
+bin/rails server
+```
+
+BugSage also reads `BUGSAGE_CURSOR_API_KEY`. If you already exported a Cursor key as `OPENAI_API_KEY`, BugSage auto-detects the `crsr_` prefix and routes to Cursor.
+
+Optional explicit config:
+
+```ruby
+config.bugsage.ai_enabled = true
+config.bugsage.ai_provider = :cursor
+# config.bugsage.cursor_model = "composer-2.5"  # optional; omit for account default
+```
+
+**Note:** Cursor analysis runs through a Cloud Agent and may take up to 90 seconds on the first response. OpenAI responses are usually much faster.
+
+The API key must be available in the **same terminal** that starts the Rails server.
 
 When AI enhancement succeeds, the error page and dashboard show an **AI-enhanced** badge and **AI notes**. If the API fails (e.g. invalid key, rate limit), BugSage shows rule-based suggestions and logs:
 

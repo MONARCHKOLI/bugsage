@@ -43,7 +43,16 @@ module Bugsage
     private
 
     def client
-      @client ||= @config.ai_client || OpenAiClient.new(config: @config)
+      @client ||= @config.ai_client || build_client
+    end
+
+    def build_client
+      case @config.resolved_ai_provider
+      when :cursor
+        CursorClient.new(config: @config)
+      else
+        OpenAiClient.new(config: @config)
+      end
     end
 
     def build_prompt(suggestion, exception, context)
@@ -69,7 +78,7 @@ module Bugsage
     end
 
     def parse_response(response)
-      payload = JSON.parse(response)
+      payload = JSON.parse(extract_json(response))
       {
         root_cause: payload["root_cause"].to_s.strip,
         fixes: Array(payload["fixes"]).map { |fix| fix.to_s.strip }.reject(&:empty?),
@@ -99,6 +108,16 @@ module Bugsage
       number.clamp(0, 100)
     rescue ArgumentError, TypeError
       nil
+    end
+
+    def extract_json(response)
+      stripped = response.to_s.strip
+      if stripped.include?("```")
+        stripped = stripped.sub(/\A.*?```(?:json)?\s*/im, "").sub(/\s*```.*\z/m, "")
+      end
+
+      match = stripped.match(/\{.*\}/m)
+      match ? match[0] : stripped
     end
 
     def log_failure(error)
