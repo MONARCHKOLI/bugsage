@@ -6,7 +6,8 @@ module Bugsage
 
     attr_reader :issue, :location, :root_cause, :fixes, :confidence, :source, :ai_notes, :code_patch
 
-    def initialize(issue:, location:, root_cause:, fixes:, confidence:, source: :rules, ai_notes: nil, code_patch: nil, code_fix: nil)
+    def initialize(issue:, location:, root_cause:, fixes:, confidence:, source: :rules, ai_notes: nil, code_patch: nil,
+                   code_fix: nil)
       @issue = issue
       @location = location
       @root_cause = root_cause
@@ -22,10 +23,10 @@ module Bugsage
     end
 
     def ai_enhanced?
-      source == :hybrid || source == :ai
+      %i[hybrid ai].include?(source)
     end
 
-    def with_ai_enhancement(root_cause:, fixes:, confidence:, ai_notes: nil, code_patch: nil, code_fix: nil)
+    def with_ai_enhancement(root_cause:, fixes:, confidence:, ai_notes: nil, code_patch: nil)
       self.class.new(
         issue: issue,
         location: location,
@@ -49,7 +50,7 @@ module Bugsage
       return code_patch if code_patch.is_a?(Hash) && !code_patch.empty?
       return nil if legacy_code_fix.to_s.strip.empty?
 
-      file_path, line_number = CodeContext.extract_location(location)
+      _, line_number = CodeContext.extract_location(location)
       legacy = CodePatch.from_legacy(legacy_code_fix, line_number || 1)
       legacy&.to_h
     end

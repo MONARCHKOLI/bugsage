@@ -28,10 +28,8 @@ module Bugsage
         event = Store.all[payload["index"].to_i]
         return nil unless AiContext.load_from_event(event)
 
-        AiContext.current
-      else
-        AiContext.current
       end
+      AiContext.current
     end
 
     def self.persist_enhancement!(suggestion, ai_error, index)
@@ -43,9 +41,7 @@ module Bugsage
     end
 
     def self.serialize(suggestion, ai_error)
-      if ai_error
-        return error_response(ai_error)
-      end
+      return error_response(ai_error) if ai_error
 
       {
         ok: true,
@@ -80,7 +76,11 @@ module Bugsage
       index_attr = bug_index.nil? ? "" : %( data-bug-index="#{bug_index}")
       location_data = suggestion&.location ? %( data-location="#{CodeContext.escape_html(suggestion.location)}") : ""
       patch_available = patch_action(suggestion&.code_patch) && patch_action(suggestion&.code_patch) != "no_change"
-      code_patch_data = patch_available ? %( data-code-patch="#{CodeContext.escape_html(JSON.generate(suggestion.code_patch))}") : ""
+      code_patch_data = if patch_available
+                          %( data-code-patch="#{CodeContext.escape_html(JSON.generate(suggestion.code_patch))}")
+                        else
+                          ""
+                        end
       enhanced = suggestion&.ai_enhanced?
 
       <<~HTML
@@ -99,10 +99,10 @@ module Bugsage
           <p class="ai-panel-help">
             Rule-based analysis loads instantly. Click below when you want AI-enhanced fixes.
           </p>
-          <button type="button" class="quick-fix-button bugsage-quick-fix"#{enhanced ? " hidden" : ""}>
+          <button type="button" class="quick-fix-button bugsage-quick-fix"#{" hidden" if enhanced}>
             Quick Fix Suggestion
           </button>
-          <div class="ai-apply-row#{patch_available ? "" : " hidden"}">
+          <div class="ai-apply-row#{" hidden" unless patch_available}">
             <button type="button" class="apply-ai-button bugsage-apply-ai-codebase">
               Apply AI to Codebase
             </button>
@@ -114,14 +114,14 @@ module Bugsage
               </select>
             </label>
           </div>
-          <pre class="ai-code-preview#{patch_available ? "" : " hidden"}" id="bugsage-code-preview#{suffix}">#{CodeContext.escape_html(suggestion&.code_fix.to_s)}</pre>
+          <pre class="ai-code-preview#{" hidden" unless patch_available}" id="bugsage-code-preview#{suffix}">#{CodeContext.escape_html(suggestion&.code_fix.to_s)}</pre>
           <div id="#{status_id}" class="ai-status" aria-live="polite"></div>
-          <div id="#{notes_id}" class="ai-notes#{suggestion&.ai_notes.to_s.strip.empty? ? " hidden" : ""}">
+          <div id="#{notes_id}" class="ai-notes#{" hidden" if suggestion&.ai_notes.to_s.strip.empty?}">
             #{CodeContext.escape_html(suggestion&.ai_notes.to_s)}
           </div>
         </div>
         <template id="bugsage-ai-targets#{suffix}" data-fixes-target="##{fixes_id}" data-confidence-target="##{confidence_id}" data-notes-target="##{notes_id}" data-status-target="##{status_id}"></template>
-        #{include_script ? render_script : ""}
+        #{render_script if include_script}
       HTML
     end
 

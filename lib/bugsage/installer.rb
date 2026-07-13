@@ -40,9 +40,7 @@ module Bugsage
     end
 
     def write_initializer(path)
-      if File.exist?(path) && !@force
-        return false
-      end
+      return false if File.exist?(path) && !@force
 
       FileUtils.mkdir_p(File.dirname(path))
       File.write(path, initializer_template)

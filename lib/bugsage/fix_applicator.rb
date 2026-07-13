@@ -72,9 +72,7 @@ module Bugsage
               end
       raise Bugsage::Error, "AI code patch is missing." unless patch
 
-      if patch.action == "no_change"
-        raise Bugsage::Error, "AI determined no code change is required."
-      end
+      raise Bugsage::Error, "AI determined no code change is required." if patch.action == "no_change"
 
       if patch.duplicates_existing?(lines)
         raise Bugsage::Error, "Suggested code already exists in this file. No changes applied."
@@ -121,7 +119,8 @@ module Bugsage
     end
 
     def self.forbidden
-      [403, { "Content-Type" => "application/json" }, [JSON.generate(error_response("Fix application is only available in development and test."))]]
+      [403, { "Content-Type" => "application/json" },
+       [JSON.generate(error_response("Fix application is only available in development and test."))]]
     end
   end
 end

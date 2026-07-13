@@ -96,7 +96,6 @@ module Bugsage
       hint = case response.code.to_i
              when 401 then "Check that OPENAI_API_KEY is valid."
              when 429 then "Rate limit or billing quota exceeded. Check usage at platform.openai.com."
-             else nil
              end
 
       message = "OpenAI request failed with status #{response.code}"

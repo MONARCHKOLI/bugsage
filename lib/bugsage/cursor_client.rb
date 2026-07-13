@@ -49,7 +49,10 @@ module Bugsage
 
       agent_id = response.dig("agent", "id")
       run_id = response.dig("run", "id")
-      raise Error, "Cursor agent response did not include agent and run ids" if agent_id.to_s.empty? || run_id.to_s.empty?
+      if agent_id.to_s.empty? || run_id.to_s.empty?
+        raise Error,
+              "Cursor agent response did not include agent and run ids"
+      end
 
       [agent_id, run_id]
     end
@@ -69,9 +72,7 @@ module Bugsage
           return result
         end
 
-        if TERMINAL_STATUSES.include?(status)
-          raise Error, "Cursor run ended with status #{status}"
-        end
+        raise Error, "Cursor run ended with status #{status}" if TERMINAL_STATUSES.include?(status)
 
         raise Error, "Cursor run timed out after #{@config.effective_ai_timeout}s" if Time.now >= deadline
 
@@ -112,7 +113,7 @@ module Bugsage
 
     def extract_text_content(text)
       stripped = text.to_s.strip
-      stripped = stripped.sub(/\A```(?:\w+)?\s*/m, "").sub(/\s*```\z/m, "") if stripped.start_with?("```")
+      stripped = stripped.sub(/\A```(?:\w*)\s*/m, "").sub(/\s*```\z/m, "") if stripped.start_with?("```")
       stripped
     end
 

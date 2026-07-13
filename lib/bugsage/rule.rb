@@ -39,7 +39,8 @@ module Bugsage
       { classes: ["TypeError"], handler: :match_type_error },
       { classes: ["ZeroDivisionError"], handler: :match_zero_division_error },
       { classes: ["JSON::ParserError"], handler: :match_json_parse_error },
-      { classes: ["Net::OpenTimeout", "Net::ReadTimeout", "Timeout::Error"], message: /timed out|timeout|execution expired/i, handler: :match_timeout_error },
+      { classes: ["Net::OpenTimeout", "Net::ReadTimeout", "Timeout::Error"],
+        message: /timed out|timeout|execution expired/i, handler: :match_timeout_error },
       { classes: ["FrozenError"], handler: :match_frozen_error },
       { classes: ["RuntimeError"], handler: :match_runtime_error }
     ].freeze
@@ -58,13 +59,9 @@ module Bugsage
     end
 
     def self.matches_definition?(exception, definition)
-      if definition[:classes]&.any? { |class_name| ExceptionSupport.matches_class?(exception, class_name) }
-        return true
-      end
+      return true if definition[:classes]&.any? { |class_name| ExceptionSupport.matches_class?(exception, class_name) }
 
-      if definition[:message] && ExceptionSupport.message_matches?(exception, definition[:message])
-        return true
-      end
+      return true if definition[:message] && ExceptionSupport.message_matches?(exception, definition[:message])
 
       false
     end

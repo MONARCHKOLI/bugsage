@@ -6,7 +6,7 @@ module Bugsage
   class AiChat
     ENDPOINT = "/bugsage/ai-chat"
 
-    SYSTEM_PROMPT = <<~PROMPT.freeze
+    SYSTEM_PROMPT = <<~PROMPT
       You are BugSage, a Ruby on Rails debugging assistant chatting with a developer
       about a specific caught exception.
 
@@ -27,7 +27,7 @@ module Bugsage
         revise the current suggested fix, or agrees to an alternative approach
         (for example commenting out a line instead of deleting it).
       - When they want to comment out a line, use replace_lines with the commented
-        Ruby code in replacement (e.g. "# raise \"debug\""), not delete_lines.
+        Ruby code in replacement (e.g. "# raise "debug""), not delete_lines.
       - Use absolute line numbers from the numbered source (the line marked with >>).
       - NEVER duplicate code that already exists in the file.
       - Change ONLY the lines required for the requested fix.
@@ -77,7 +77,7 @@ module Bugsage
     def self.build_chat_prompt(context, message, history)
       context_block = build_context_block(context)
       conversation = history.map do |entry|
-        "#{entry['role'].capitalize}: #{entry['content']}"
+        "#{entry["role"].capitalize}: #{entry["content"]}"
       end.join("\n\n")
 
       parts = [context_block]
@@ -141,10 +141,10 @@ module Bugsage
         Message: #{exception.message}
         Location: #{suggestion.location}
         Root cause: #{suggestion.root_cause}
-        Suggested fixes: #{suggestion.fixes.join('; ')}
+        Suggested fixes: #{suggestion.fixes.join("; ")}
         AI notes: #{suggestion.ai_notes}
         Current code_patch JSON: #{patch_json}
-        Current patch preview: #{suggestion.code_fix || 'none yet'}
+        Current patch preview: #{suggestion.code_fix || "none yet"}
 
         Numbered source:
         #{source_block}
@@ -153,9 +153,7 @@ module Bugsage
 
     def self.extract_json(response)
       stripped = response.to_s.strip
-      if stripped.include?("```")
-        stripped = stripped.sub(/\A.*?```(?:json)?\s*/im, "").sub(/\s*```.*\z/m, "")
-      end
+      stripped = stripped.sub(/\A.*?```(?:json)?\s*/im, "").sub(/\s*```.*\z/m, "") if stripped.include?("```")
 
       match = stripped.match(/\{.*\}/m)
       match ? match[0] : stripped

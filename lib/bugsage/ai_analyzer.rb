@@ -4,7 +4,7 @@ require "json"
 
 module Bugsage
   class AiAnalyzer
-    SYSTEM_PROMPT = <<~PROMPT.freeze
+    SYSTEM_PROMPT = <<~PROMPT
       You are BugSage, a Ruby on Rails debugging assistant.
       Refine the provided rule-based analysis using the exception details and request context.
       Respond with JSON only using this schema:
@@ -96,7 +96,7 @@ module Bugsage
         Rule-based analysis:
         Issue: #{suggestion.issue}
         Root cause: #{suggestion.root_cause}
-        Fixes: #{suggestion.fixes.join('; ')}
+        Fixes: #{suggestion.fixes.join("; ")}
         Confidence: #{suggestion.confidence}
       PROMPT
     end
@@ -129,7 +129,7 @@ module Bugsage
 
     def merge_fixes(rule_fixes, ai_fixes)
       combined = ai_fixes + rule_fixes
-      combined.uniq { |fix| fix.downcase }
+      combined.uniq(&:downcase)
     end
 
     def normalize_confidence(value)
@@ -141,9 +141,7 @@ module Bugsage
 
     def extract_json(response)
       stripped = response.to_s.strip
-      if stripped.include?("```")
-        stripped = stripped.sub(/\A.*?```(?:json)?\s*/im, "").sub(/\s*```.*\z/m, "")
-      end
+      stripped = stripped.sub(/\A.*?```(?:json)?\s*/im, "").sub(/\s*```.*\z/m, "") if stripped.include?("```")
 
       match = stripped.match(/\{.*\}/m)
       match ? match[0] : stripped

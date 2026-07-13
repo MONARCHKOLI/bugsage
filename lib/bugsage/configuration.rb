@@ -102,17 +102,17 @@ module Bugsage
     end
 
     def resolved_openai_api_key
-      key = openai_api_key || ENV["OPENAI_API_KEY"] || ENV["BUGSAGE_OPENAI_API_KEY"]
+      key = openai_api_key || ENV["OPENAI_API_KEY"] || ENV.fetch("BUGSAGE_OPENAI_API_KEY", nil)
       return nil if key.to_s.start_with?("crsr_")
 
       key
     end
 
     def resolved_cursor_api_key
-      explicit = cursor_api_key || ENV["CURSOR_API_KEY"] || ENV["BUGSAGE_CURSOR_API_KEY"]
+      explicit = cursor_api_key || ENV["CURSOR_API_KEY"] || ENV.fetch("BUGSAGE_CURSOR_API_KEY", nil)
       return explicit if explicit.to_s.start_with?("crsr_")
 
-      misrouted = openai_api_key || ENV["OPENAI_API_KEY"] || ENV["BUGSAGE_OPENAI_API_KEY"]
+      misrouted = openai_api_key || ENV["OPENAI_API_KEY"] || ENV.fetch("BUGSAGE_OPENAI_API_KEY", nil)
       return misrouted if misrouted.to_s.start_with?("crsr_")
 
       explicit

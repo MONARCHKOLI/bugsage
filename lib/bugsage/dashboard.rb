@@ -86,7 +86,7 @@ module Bugsage
       context = event[:context] || {}
       fixes = event[:fixes] || []
       active_class = index.zero? ? " active" : ""
-      hidden_attr = index.zero? ? "" : ' hidden'
+      hidden_attr = index.zero? ? "" : " hidden"
 
       <<~HTML
         <section id="bug-#{index}" class="bug-detail#{active_class}"#{hidden_attr}>
@@ -116,7 +116,7 @@ module Bugsage
             <div class="detail-section">
               <div class="label">Suggested fixes</div>
               <ul class="fixes" id="bugsage-fixes-bug-#{index}">
-                #{fixes.map.with_index { |fix, fix_index| "<li#{fix_index.zero? ? ' class=\"selected\"' : ''}>#{CodeContext.escape_html(fix)}</li>" }.join}
+                #{fixes.map.with_index { |fix, fix_index| "<li#{' class=\"selected\"' if fix_index.zero?}>#{CodeContext.escape_html(fix)}</li>" }.join}
               </ul>
               #{PageActions.render_fix_actions(location: event[:location], suffix: "-bug-#{index}", hidden: false)}
             </div>

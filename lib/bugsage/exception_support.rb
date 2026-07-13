@@ -36,9 +36,7 @@ module Bugsage
     end
 
     def next_exception_candidate(object)
-      if object.respond_to?(:unwrapped_exception)
-        return object.unwrapped_exception
-      end
+      return object.unwrapped_exception if object.respond_to?(:unwrapped_exception)
 
       if object.respond_to?(:exception)
         candidate = object.exception
@@ -66,7 +64,7 @@ module Bugsage
     end
 
     def matches_any_class?(exception, *class_names)
-      (exception_ancestor_names(exception) & class_names).any?
+      exception_ancestor_names(exception).intersect?(class_names)
     end
 
     def message_matches?(exception, pattern)

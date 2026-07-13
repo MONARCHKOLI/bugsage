@@ -48,7 +48,7 @@ module Bugsage
 
     def dashboard_request?(env)
       path = env["PATH_INFO"].to_s
-      path == "/bugsage" || path == "/bugsage/"
+      ["/bugsage", "/bugsage/"].include?(path)
     end
 
     def console_request?(env)
@@ -81,11 +81,11 @@ module Bugsage
     def routing_error_for(env)
       if defined?(ActionController::RoutingError)
         ActionController::RoutingError.new(
-          "No route matches [#{env['REQUEST_METHOD']}] #{env['PATH_INFO'].inspect}"
+          "No route matches [#{env["REQUEST_METHOD"]}] #{env["PATH_INFO"].inspect}"
         )
       else
         StandardError.new(
-          "No route matches [#{env['REQUEST_METHOD']}] #{env['PATH_INFO'].inspect}"
+          "No route matches [#{env["REQUEST_METHOD"]}] #{env["PATH_INFO"].inspect}"
         )
       end
     end
@@ -103,14 +103,12 @@ module Bugsage
       config = Bugsage.configuration
       return unless config.enabled?
 
-      if config.show_error_page?
-        return ExceptionHandler.render_response(env, exception)
-      end
+      return ExceptionHandler.render_response(env, exception) if config.show_error_page?
 
-      if config.capture_errors?
-        ExceptionHandler.store_exception(env, exception)
-        :stored
-      end
+      return unless config.capture_errors?
+
+      ExceptionHandler.store_exception(env, exception)
+      :stored
     end
 
     def bugsage_response?(body)

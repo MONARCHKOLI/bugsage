@@ -87,7 +87,7 @@ module Bugsage
     end
 
     def duplicates_existing?(lines)
-      return false if action == "delete_lines" || action == "no_change"
+      return false if %w[delete_lines no_change].include?(action)
       return true if replacement.strip.empty?
 
       normalized = normalize_line(replacement)

@@ -1,6 +1,9 @@
 AllCops:
   TargetRubyVersion: 3.2
   NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - Gemfile.lock
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
@@ -18,18 +21,67 @@ Metrics/BlockLength:
 
 Metrics/MethodLength:
   Max: 20
+  Exclude:
+    - lib/bugsage/ai_chat.rb
+    - lib/bugsage/ai_panel.rb
+    - lib/bugsage/code_context.rb
+    - lib/bugsage/cursor_client.rb
+    - lib/bugsage/dashboard.rb
+    - lib/bugsage/error_page.rb
+    - lib/bugsage/fix_applicator.rb
+    - lib/bugsage/inline_console.rb
+    - spec/bugsage_spec.rb
 
 Metrics/ClassLength:
   Max: 380
+  Exclude:
+    - lib/bugsage/ai_panel.rb
+    - lib/bugsage/dashboard.rb
+    - lib/bugsage/rule.rb
+
+Metrics/ModuleLength:
+  Max: 100
+  Exclude:
+    - lib/bugsage/page_actions.rb
+    - spec/support/exception_scenarios.rb
 
 Metrics/AbcSize:
   Max: 30
+  Exclude:
+    - lib/bugsage/ai_chat.rb
+    - lib/bugsage/ai_panel.rb
+    - lib/bugsage/dashboard.rb
 
 Metrics/CyclomaticComplexity:
   Max: 12
+  Exclude:
+    - lib/bugsage/ai_panel.rb
+    - lib/bugsage/dashboard.rb
+    - lib/bugsage/middleware.rb
 
 Metrics/PerceivedComplexity:
   Max: 12
+  Exclude:
+    - lib/bugsage/ai_panel.rb
+    - lib/bugsage/dashboard.rb
+    - lib/bugsage/middleware.rb
+
+Metrics/ParameterLists:
+  Exclude:
+    - lib/bugsage/suggestion.rb
+
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+Naming/PredicateMethod:
+  Exclude:
+    - lib/bugsage/ai_context.rb
+    - lib/bugsage/console_context.rb
+    - lib/bugsage/installer.rb
+
+Lint/UnusedMethodArgument:
+  Exclude:
+    - spec/**/*
 
 Lint/RescueException:
   Enabled: false

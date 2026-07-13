@@ -73,7 +73,7 @@ module Bugsage
           </form>
           <div id="#{output_id}" class="console-output" aria-live="polite"></div>
         </div>
-        #{include_script ? render_script : ""}
+        #{render_script if include_script}
       HTML
     end
 

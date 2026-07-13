@@ -49,19 +49,19 @@ module Bugsage
 
     def summary(config = Bugsage.configuration, env: ENV)
       credentials = detect_api_credentials(env)
-      environments = Array(config.enabled_environments).map(&:to_s).join(", ")
+      environments = Array(config.enabled_environments).join(", ")
 
       lines = [
         "BugSage is ready to use.",
         "Enabled environments: #{environments}",
-        "Error page: #{enabled_label(config.show_error_page?('development'))}",
-        "Dashboard (/bugsage): #{enabled_label(config.show_dashboard?('development'))}",
-        "Inline console: #{enabled_label(config.show_inline_console?('development'))}"
+        "Error page: #{enabled_label(config.show_error_page?("development"))}",
+        "Dashboard (/bugsage): #{enabled_label(config.show_dashboard?("development"))}",
+        "Inline console: #{enabled_label(config.show_inline_console?("development"))}"
       ]
 
       if credentials
         lines << "AI provider: #{config.resolved_ai_provider} (from #{credentials[:source]})"
-        lines << "AI suggestions: #{enabled_label(config.ai_enabled?('development'))}"
+        lines << "AI suggestions: #{enabled_label(config.ai_enabled?("development"))}"
       else
         lines << "AI suggestions: off (set OPENAI_API_KEY or CURSOR_API_KEY to enable)"
       end

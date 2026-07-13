@@ -11,7 +11,7 @@ module Bugsage
       ConsoleContext.clear!
       AiContext.clear!
 
-      redirect_to = env["PATH_INFO"].to_s.include?("dashboard") ? "/bugsage" : "/bugsage"
+      redirect_to = "/bugsage"
 
       if json_request?(env)
         json_response({ ok: true, message: "Session logs cleared." })
