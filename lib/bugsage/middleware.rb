@@ -11,6 +11,10 @@ module Bugsage
     def call(env)
       return handle_dashboard(env) if dashboard_request?(env)
       return InlineConsole.handle_request(env) if console_request?(env)
+      return AiPanel.handle_request(env) if ai_suggest_request?(env)
+      return AiChat.handle_request(env) if ai_chat_request?(env)
+      return FixApplicator.handle_request(env) if apply_fix_request?(env)
+      return SessionClear.handle_request(env) if clear_request?(env)
       return @app.call(env) unless Bugsage.configuration.enabled?
 
       status, headers, body = @app.call(env)
@@ -49,6 +53,22 @@ module Bugsage
 
     def console_request?(env)
       env["REQUEST_METHOD"] == "POST" && env["PATH_INFO"] == "/bugsage/console"
+    end
+
+    def ai_suggest_request?(env)
+      env["REQUEST_METHOD"] == "POST" && env["PATH_INFO"] == AiPanel::ENDPOINT
+    end
+
+    def ai_chat_request?(env)
+      env["REQUEST_METHOD"] == "POST" && env["PATH_INFO"] == AiChat::ENDPOINT
+    end
+
+    def apply_fix_request?(env)
+      env["REQUEST_METHOD"] == "POST" && env["PATH_INFO"] == FixApplicator::ENDPOINT
+    end
+
+    def clear_request?(env)
+      env["REQUEST_METHOD"] == "POST" && env["PATH_INFO"] == SessionClear::ENDPOINT
     end
 
     def capture_routing_error(env, headers)

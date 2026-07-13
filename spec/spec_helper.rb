@@ -8,6 +8,7 @@ RSpec.configure do |config|
   config.before do
     Bugsage.reset_configuration!
     Bugsage::ConsoleContext.clear!
+    Bugsage::AiContext.clear!
   end
 
   # Enable flags like --only-failures and --next-failure

@@ -28,16 +28,14 @@ module Bugsage
 
       context = request_context(env)
       ai_error = nil
-      if config.ai_configured?
-        suggestion, ai_error = AiAnalyzer.enhance(suggestion, exception, context)
-      end
 
       Store.add(suggestion, context, ai_error: ai_error, exception: exception) if config.capture_errors?
       ConsoleContext.set(exception: exception, context: context) if config.show_inline_console?
+      AiContext.set(exception: exception, suggestion: suggestion, context: context) if config.ai_configured?
 
       return unless render && config.show_error_page?
 
-      [status_for(exception), { "Content-Type" => "text/html" }, [ErrorPage.render(suggestion, context, ai_error: ai_error)]]
+      [status_for(exception), { "Content-Type" => "text/html" }, [ErrorPage.render(suggestion, context)]]
     end
 
     def request_context(env)

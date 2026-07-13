@@ -14,19 +14,29 @@ module Bugsage
 
     def complete(system_prompt:, user_prompt:)
       agent_id = nil
-      agent_id, run_id = create_agent(system_prompt, user_prompt)
+      agent_id, run_id = create_agent(system_prompt, user_prompt, json_only: true)
       result = poll_run(agent_id, run_id)
       extract_json_content(result)
     ensure
       delete_agent(agent_id) if agent_id
     end
 
+    def chat(system_prompt:, messages:)
+      prompt = messages.map { |entry| "#{entry[:role].to_s.capitalize}: #{entry[:content]}" }.join("\n\n")
+      agent_id = nil
+      agent_id, run_id = create_agent(system_prompt, prompt, json_only: false)
+      result = poll_run(agent_id, run_id)
+      extract_text_content(result)
+    ensure
+      delete_agent(agent_id) if agent_id
+    end
+
     private
 
-    def create_agent(system_prompt, user_prompt)
+    def create_agent(system_prompt, user_prompt, json_only: true)
       body = {
         prompt: {
-          text: build_agent_prompt(system_prompt, user_prompt)
+          text: build_agent_prompt(system_prompt, user_prompt, json_only: json_only)
         }
       }
       body[:model] = { id: @config.cursor_model } if @config.cursor_model.to_s.strip != ""
@@ -76,13 +86,19 @@ module Bugsage
       nil
     end
 
-    def build_agent_prompt(system_prompt, user_prompt)
+    def build_agent_prompt(system_prompt, user_prompt, json_only: true)
+      reply_instruction = if json_only
+                            "Reply with JSON only. Do not create files, run shell commands, or modify a repository."
+                          else
+                            "Reply in plain text. Do not create files, run shell commands, or modify a repository."
+                          end
+
       <<~PROMPT
         #{system_prompt}
 
         #{user_prompt}
 
-        Reply with JSON only. Do not create files, run shell commands, or modify a repository.
+        #{reply_instruction}
       PROMPT
     end
 
@@ -92,6 +108,12 @@ module Bugsage
 
       match = stripped.match(/\{.*\}/m)
       match ? match[0] : stripped
+    end
+
+    def extract_text_content(text)
+      stripped = text.to_s.strip
+      stripped = stripped.sub(/\A```(?:\w+)?\s*/m, "").sub(/\s*```\z/m, "") if stripped.start_with?("```")
+      stripped
     end
 
     def request(method:, path:, body: nil)

@@ -47,6 +47,25 @@ module Bugsage
       HTML
     end
 
+    def numbered_source(file_path, line_number, context_range: 20)
+      lines = read_file_lines(file_path)
+      return nil unless lines
+
+      start_line = [line_number - context_range, 1].max
+      end_line = [line_number + context_range, lines.length].min
+      source = (start_line..end_line).map do |num|
+        marker = num == line_number ? ">>" : "  "
+        "#{marker} #{num.to_s.rjust(4)} | #{lines[num - 1]}"
+      end.join("\n")
+
+      {
+        start_line: start_line,
+        end_line: end_line,
+        error_line: line_number,
+        source: source
+      }
+    end
+
     def read_file_lines(file_path)
       return nil unless file_path && File.exist?(file_path)
 

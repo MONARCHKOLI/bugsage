@@ -5,7 +5,7 @@ require "json"
 
 module Bugsage
   class ErrorPage
-    def self.render(suggestion, context = {}, ai_error: nil)
+    def self.render(suggestion, context = {})
       file_path, line_number = CodeContext.extract_location(suggestion.location)
       code_context = CodeContext.render_code_context(file_path, line_number)
 
@@ -105,6 +105,7 @@ module Bugsage
               font-weight: bold;
             }
             #{InlineConsole.styles}
+            #{AiPanel.styles}
             .section {
               margin-top: 24px;
             }
@@ -217,25 +218,24 @@ module Bugsage
 
             #{render_request_context(context)}
 
-            #{render_ai_notes(suggestion)}
-
-            #{render_ai_error(ai_error)}
+            #{AiPanel.render_panel(suggestion: suggestion, include_script: false)}
 
             <div class="row">
               <div class="section">
                 <div class="label">Suggested Fixes</div>
-                <ul class="fixes">
+                <ul class="fixes" id="bugsage-fixes">
                   #{suggestion.fixes.map { |f| "<li>#{CodeContext.escape_html(f)}</li>" }.join}
                 </ul>
               </div>
               <div class="section">
                 <div class="label">Confidence Level</div>
                 <div style="padding-top: 12px;">
-                  <span class="confidence">#{suggestion.confidence}%</span>
+                  <span class="confidence" id="bugsage-confidence">#{suggestion.confidence}%</span>
                 </div>
               </div>
             </div>
           </div>
+          #{AiPanel.render_script if Bugsage.configuration.ai_configured?}
         </body>
         </html>
       HTML

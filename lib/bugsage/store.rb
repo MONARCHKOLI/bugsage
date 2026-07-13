@@ -24,6 +24,19 @@ module Bugsage
       @entries ||= []
     end
 
+    def self.update_at(index, suggestion, ai_error: nil)
+      event = entries[index]
+      return unless event
+
+      event[:root_cause] = suggestion.root_cause
+      event[:fixes] = suggestion.fixes
+      event[:confidence] = suggestion.confidence
+      event[:source] = suggestion.source
+      event[:ai_notes] = suggestion.ai_notes
+      event[:code_patch] = suggestion.code_patch
+      event[:ai_error] = ai_error
+    end
+
     def self.build_event(suggestion, context, metadata = {})
       exception = metadata[:exception]
 
@@ -35,6 +48,7 @@ module Bugsage
         confidence: suggestion.confidence,
         source: suggestion.source,
         ai_notes: suggestion.ai_notes,
+        code_patch: suggestion.code_patch,
         ai_error: metadata[:ai_error],
         exception_class: exception&.class&.name,
         exception_message: exception&.message.to_s,

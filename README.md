@@ -10,9 +10,10 @@ It uses deterministic rules first, with optional AI-powered refinement when enab
 - Classifies them into likely issue categories
 - Surfaces the root cause in a simple report
 - Suggests practical next steps
-- Optionally refines suggestions with OpenAI when configured
+- Optionally refines suggestions with OpenAI or Cursor when configured
 - Displays Rails request context such as path, method, controller, action, and parameters
 - Provides a session dashboard at `/bugsage` in development
+- Lets you chat with AI about a fix and apply refined code patches directly to your codebase
 
 ## Installation
 
@@ -54,6 +55,9 @@ No `routes.rb` changes, no middleware setup, and no `application.rb` edits are r
 - BugSage HTML error pages in development
 - Session dashboard at `/bugsage`
 - Inline Rails console at `/bugsage/console`
+- On-demand AI panel with Quick Fix, loading animation, and follow-up chat
+- Surgical code patches (`delete_lines`, `replace_lines`, `insert_before`) with duplicate detection
+- Dashboard fix actions (apply patch, open in editor, copy prompt, clear session)
 - Routing error capture via `exceptions_app`
 - AI provider auto-detection when API keys are present
 
@@ -128,7 +132,7 @@ end
 | `show_error_page` | `true` in development only | Replace errors with the BugSage HTML page |
 | `show_dashboard` | `true` in development only | Serve the `/bugsage` session dashboard |
 | `capture_errors` | `true` | Store caught errors in the in-memory session store |
-| `ai_enabled` | auto (`true` when an API key is present) | Refine rule-based suggestions with AI |
+| `ai_enabled` | auto (`true` when an API key is present) | Show the on-demand AI panel (does not auto-call the API) |
 | `ai_provider` | auto-detected | `:openai` or `:cursor` (auto-detects `crsr_` keys) |
 | `openai_api_key` | `nil` (falls back to env) | OpenAI API key (`sk-...`) |
 | `openai_model` | `gpt-4o-mini` | Model used for OpenAI analysis |
@@ -149,14 +153,66 @@ end
 
 Restart the Rails server after changing configuration.
 
-### AI suggestions
+### AI suggestions (on-demand)
 
-When `ai_enabled` is `true` and an API key is available, BugSage:
+When an API key is available, BugSage shows an **AI Suggestions** panel on the error page and `/bugsage` dashboard with:
 
-1. Runs deterministic rules first (fast, offline)
-2. Sends exception details and request context to the configured AI provider
-3. Merges AI output into the suggestion (refined root cause, extra fixes, notes)
-4. Falls back to rules-only if the API call fails
+- **Enable AI** toggle — turn AI requests on or off for your browser session (stored in `localStorage`)
+- **Quick Fix Suggestion** button — calls the AI API only when you click it
+- **Loading animation** — spinner, progress bar, and step messages while AI runs (especially helpful for Cursor’s longer responses)
+- **💬 Chat** — follow-up conversation about the error, the suggested fix, or alternative approaches
+
+This keeps error pages fast: rule-based analysis loads instantly, and AI runs only when you need it.
+
+Flow:
+
+1. BugSage classifies the error with deterministic rules (instant)
+2. You click **Quick Fix Suggestion** when you want AI help
+3. BugSage sends exception details, numbered source context, and request context to the configured provider
+4. Fixes, confidence, AI notes, and a structured `code_patch` update in the page without a reload
+5. Use **💬 Chat** to ask questions, request alternatives (e.g. comment out a line instead of deleting it), or refine the fix
+6. When chat produces a new patch, the code preview and **Apply AI to Codebase** button update automatically
+
+#### Structured code patches
+
+AI responses include a surgical `code_patch` instead of blind string replacement:
+
+| Action | Purpose |
+|--------|---------|
+| `delete_lines` | Remove stray/debug lines |
+| `replace_lines` | Replace specific lines (e.g. comment out instead of delete) |
+| `insert_before` | Insert new code before a line |
+| `no_change` | File already contains the correct fix |
+
+Patches use absolute line numbers from numbered source context (±20 lines around the error). BugSage rejects patches that would duplicate code already in the file and preserves indentation on apply.
+
+#### Dashboard fix actions
+
+After suggestions appear on the `/bugsage` dashboard, use the fix actions (dashboard only — no full-page reload):
+
+- **Quick Fix Suggestion** — fetch AI analysis on demand
+- **Apply AI to Codebase** — apply the current `code_patch` to your source file, then open it in Cursor or VS Code
+- **Open in Cursor** / **Open in VS Code** — jump to the failing file and line
+- **Copy Fix** — copy a prompt you can paste into your editor AI chat
+- **Apply Fix to File** — insert a `# BUGSAGE:` comment above the failing line in development
+- **Clear session logs** — wipe captured errors from the dashboard sidebar in place
+
+Chat-refined patches are persisted in the session store, so **Apply AI to Codebase** always uses the latest patch from Quick Fix or chat.
+
+#### BugSage API endpoints
+
+BugSage registers these Rack endpoints automatically:
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/bugsage` | GET | Session dashboard |
+| `/bugsage/console` | POST | Inline Rails console eval |
+| `/bugsage/ai-suggest` | POST | On-demand Quick Fix AI enhancement |
+| `/bugsage/ai-chat` | POST | Follow-up chat with optional `code_patch` updates |
+| `/bugsage/apply-fix` | POST | Apply a `code_patch` to a source file (development/test only) |
+| `/bugsage/clear` | POST | Clear session error store |
+
+Disable AI entirely with `config.bugsage.ai_enabled = false`.
 
 #### OpenAI
 
@@ -205,7 +261,9 @@ When an exception is caught, BugSage renders a helpful page with:
 - the message
 - suggested fixes
 - confidence score
-- optional AI notes
+- optional AI notes and code patch preview
+- on-demand AI panel with loading animation and follow-up chat
+- inline Rails console (development)
 - Rails request context
 
 Open the session dashboard at:

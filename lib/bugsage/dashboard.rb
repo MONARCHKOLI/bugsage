@@ -25,6 +25,7 @@ module Bugsage
                   <span class="stat-pill">#{suggestions.size} caught</span>
                   <span class="stat-pill">#{suggestions.empty? ? "—" : "#{average_confidence(suggestions)}% avg"}</span>
                 </div>
+                #{PageActions.render_clear_button unless suggestions.empty?}
               </header>
 
               <div class="bug-list">
@@ -36,6 +37,8 @@ module Bugsage
               #{suggestions.empty? ? render_empty_detail : suggestions.map.with_index { |event, index| render_detail(event, index) }.join}
               #{render_detail_script unless suggestions.empty?}
               #{InlineConsole.render_script if Bugsage.configuration.show_inline_console? && !suggestions.empty?}
+              #{AiPanel.render_script if Bugsage.configuration.ai_configured? && !suggestions.empty?}
+              #{PageActions.render_script unless suggestions.empty?}
             </main>
           </div>
         </body>
@@ -89,7 +92,7 @@ module Bugsage
         <section id="bug-#{index}" class="bug-detail#{active_class}"#{hidden_attr}>
           <header class="detail-header">
             <h2>#{CodeContext.escape_html(event[:issue])}</h2>
-            <span class="confidence-badge">#{event[:confidence]}% confidence</span>
+            <span class="confidence-badge" id="bugsage-confidence-bug-#{index}">#{event[:confidence]}% confidence</span>
             #{render_source_badge(event)}
           </header>
 
@@ -107,12 +110,15 @@ module Bugsage
 
           #{InlineConsole.render_panel(bug_index: index, include_script: false)}
 
+          #{AiPanel.render_panel(bug_index: index, include_script: false, suggestion: suggestion_from_event(event))}
+
           <div class="detail-grid">
             <div class="detail-section">
               <div class="label">Suggested fixes</div>
-              <ul class="fixes">
-                #{fixes.map { |fix| "<li>#{CodeContext.escape_html(fix)}</li>" }.join}
+              <ul class="fixes" id="bugsage-fixes-bug-#{index}">
+                #{fixes.map.with_index { |fix, fix_index| "<li#{fix_index.zero? ? ' class=\"selected\"' : ''}>#{CodeContext.escape_html(fix)}</li>" }.join}
               </ul>
+              #{PageActions.render_fix_actions(location: event[:location], suffix: "-bug-#{index}", hidden: false)}
             </div>
 
             <div class="detail-section">
@@ -120,10 +126,6 @@ module Bugsage
               <p class="confidence-detail">#{analysis_summary(event)}</p>
             </div>
           </div>
-
-          #{render_ai_notes(event)}
-
-          #{render_ai_error(event)}
 
           #{render_request_context(context)}
         </section>
@@ -201,6 +203,19 @@ module Bugsage
       else
         "#{confidence}% match for this exception type based on BugSage rules."
       end
+    end
+
+    def self.suggestion_from_event(event)
+      Suggestion.new(
+        issue: event[:issue],
+        location: event[:location],
+        root_cause: event[:root_cause],
+        fixes: event[:fixes] || [],
+        confidence: event[:confidence],
+        source: event[:source] || :rules,
+        ai_notes: event[:ai_notes],
+        code_patch: event[:code_patch]
+      )
     end
 
     def self.render_source_badge(event)
@@ -397,6 +412,10 @@ module Bugsage
           margin-bottom: 12px;
         }
         .bug-detail[hidden] { display: none; }
+        .sidebar-header .bugsage-clear-logs {
+          margin-top: 12px;
+          width: 100%;
+        }
         .detail-header {
           display: flex;
           align-items: center;
@@ -586,6 +605,15 @@ module Bugsage
           font-size: 13px;
         }
         #{InlineConsole.styles}
+        #{AiPanel.styles}
+        #{PageActions.styles}
+        .fixes li {
+          cursor: pointer;
+        }
+        .fixes li.selected {
+          border-left-color: #89b4fa;
+          background: rgba(137, 180, 250, 0.12);
+        }
         @media (max-width: 900px) {
           .dashboard { grid-template-columns: 1fr; }
           .sidebar { min-height: auto; border-right: none; border-bottom: 1px solid #45475a; }

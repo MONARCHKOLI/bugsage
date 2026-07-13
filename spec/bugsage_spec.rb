@@ -716,12 +716,30 @@ RSpec.describe Bugsage do
     let(:mock_client) do
       Class.new do
         def complete(system_prompt:, user_prompt:)
-          JSON.generate(
-            root_cause: "AI says the receiver was nil.",
-            fixes: ["AI fix"],
-            confidence: 91,
-            notes: "AI notes here."
-          )
+          if system_prompt.include?("chatting with a developer")
+            JSON.generate(
+              reply: "Commenting out the line is safer than deleting it.",
+              code_patch: {
+                action: "replace_lines",
+                start_line: 10,
+                end_line: 10,
+                replacement: '# raise "Hiii"'
+              }
+            )
+          else
+            JSON.generate(
+              root_cause: "AI says the receiver was nil.",
+              fixes: ["AI fix"],
+              confidence: 91,
+              notes: "AI notes here.",
+              code_patch: {
+                action: "delete_lines",
+                start_line: 10,
+                end_line: 10,
+                replacement: ""
+              }
+            )
+          end
         end
       end.new
     end
@@ -736,7 +754,7 @@ RSpec.describe Bugsage do
       end
     end
 
-    it "stores hybrid suggestions through ExceptionHandler" do
+    it "does not call AI automatically during exception rendering" do
       env = {
         "REQUEST_METHOD" => "GET",
         "PATH_INFO" => "/users",
@@ -746,13 +764,78 @@ RSpec.describe Bugsage do
 
       Bugsage::Store.clear!
       status, _headers, body = Bugsage::ExceptionHandler.render_response(env, exception)
+      html = body.join
 
       stored = Bugsage::Store.all.first
       expect(status).to eq(500)
-      expect(stored[:source]).to eq(:hybrid)
-      expect(stored[:ai_notes]).to eq("AI notes here.")
-      expect(body.join).to include("AI-enhanced analysis")
-      expect(body.join).to include("AI notes here.")
+      expect(stored[:source]).to eq(:rules)
+      expect(stored[:ai_notes]).to be_nil
+      expect(html).to include("Quick Fix Suggestion")
+      expect(html).to include("bugsage-ai-chat-toggle")
+      expect(html).to include("bugsage-ai-loading")
+      expect(html).not_to include("AI-enhanced analysis")
+    end
+
+    it "returns AI-enhanced suggestions when Quick Fix is requested" do
+      env = {
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/users",
+        "HTTP_HOST" => "example.test"
+      }
+      exception = NoMethodError.new("undefined method `foo' for nil:NilClass")
+
+      Bugsage::Store.clear!
+      Bugsage::ExceptionHandler.render_response(env, exception)
+
+      request_env = {
+        "REQUEST_METHOD" => "POST",
+        "PATH_INFO" => "/bugsage/ai-suggest",
+        "rack.input" => StringIO.new("{}")
+      }
+
+      status, headers, body = Bugsage::Middleware.new(->(_env) { [404, {}, []] }).call(request_env)
+      payload = JSON.parse(body.join)
+
+      expect(status).to eq(200)
+      expect(headers["Content-Type"]).to eq("application/json")
+      expect(payload["ok"]).to be true
+      expect(payload["ai_enhanced"]).to be true
+      expect(payload["ai_notes"]).to eq("AI notes here.")
+      expect(payload["code_patch"]["action"]).to eq("delete_lines")
+      expect(payload["code_fix"]).to include("remove line 10")
+      expect(Bugsage::Store.all.first[:source]).to eq(:hybrid)
+    end
+
+    it "returns chat replies for follow-up questions" do
+      env = {
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/users",
+        "HTTP_HOST" => "example.test"
+      }
+      exception = NoMethodError.new("undefined method `foo' for nil:NilClass")
+
+      Bugsage::Store.clear!
+      Bugsage::ExceptionHandler.render_response(env, exception)
+
+      request_env = {
+        "REQUEST_METHOD" => "POST",
+        "PATH_INFO" => "/bugsage/ai-chat",
+        "rack.input" => StringIO.new(
+          JSON.generate(message: "Why should we delete that line?")
+        )
+      }
+
+      status, headers, body = Bugsage::Middleware.new(->(_env) { [404, {}, []] }).call(request_env)
+      payload = JSON.parse(body.join)
+
+      expect(status).to eq(200)
+      expect(headers["Content-Type"]).to eq("application/json")
+      expect(payload["ok"]).to be true
+      expect(payload["reply"]).to include("Commenting out")
+      expect(payload["code_patch"]["action"]).to eq("replace_lines")
+      expect(payload["code_fix"]).to include("replace line 10")
+      expect(payload["history"].last["role"]).to eq("assistant")
+      expect(Bugsage::Store.all.first[:code_patch][:action]).to eq("replace_lines")
     end
   end
 
@@ -1072,6 +1155,156 @@ RSpec.describe Bugsage do
       expect(headers["Content-Type"]).to eq("application/json")
       expect(payload["ok"]).to be true
       expect(payload["output"]).to include("1")
+    end
+  end
+
+  describe Bugsage::FixApplicator do
+    it "inserts a BugSage comment above the failing line in development" do
+      Dir.mktmpdir do |root|
+        file = File.join(root, "sample.rb")
+        File.write(file, "value = nil\nvalue.name\n")
+
+        result = described_class.apply(
+          location: "#{file}:2",
+          fix: "Add a nil guard before calling name"
+        )
+
+        expect(result[:ok]).to be true
+        expect(File.read(file)).to include("# BUGSAGE: Add a nil guard before calling name")
+      end
+    end
+
+    it "replaces the failing line with an AI code fix" do
+      Dir.mktmpdir do |root|
+        file = File.join(root, "sample.rb")
+        File.write(file, "  value = nil\n  value.name\n")
+
+        result = described_class.apply(
+          location: "#{file}:2",
+          code_patch: {
+            action: "replace_lines",
+            start_line: 2,
+            end_line: 2,
+            replacement: "value&.name"
+          }
+        )
+
+        expect(result[:ok]).to be true
+        expect(File.read(file)).to include("  value&.name")
+        expect(File.read(file)).not_to include("value.name\n")
+      end
+    end
+
+    it "deletes stray lines suggested by AI" do
+      Dir.mktmpdir do |root|
+        file = File.join(root, "sample.rb")
+        File.write(file, "  @user = User.find(params[:id])\n  render plain: @user.email\n\n  raise \"Hiii\"\n")
+
+        result = described_class.apply(
+          location: "#{file}:4",
+          code_patch: {
+            action: "delete_lines",
+            start_line: 4,
+            end_line: 4,
+            replacement: ""
+          }
+        )
+
+        expect(result[:ok]).to be true
+        contents = File.read(file)
+        expect(contents).not_to include('raise "Hiii"')
+        expect(contents).to include("@user = User.find(params[:id])")
+      end
+    end
+
+    it "rejects duplicate code already present in the file" do
+      Dir.mktmpdir do |root|
+        file = File.join(root, "sample.rb")
+        File.write(file, "  @user = User.find(params[:id])\n  raise \"Hiii\"\n")
+
+        result = described_class.apply(
+          location: "#{file}:2",
+          code_patch: {
+            action: "replace_lines",
+            start_line: 2,
+            end_line: 2,
+            replacement: "@user = User.find(params[:id])"
+          }
+        )
+
+        expect(result[:ok]).to be false
+        expect(result[:error]).to include("already exists")
+      end
+    end
+  end
+
+  describe Bugsage::CodePatch do
+    it "previews delete_line patches" do
+      patch = described_class.new(action: "delete_lines", start_line: 10, end_line: 10)
+      expect(patch.preview).to include("remove line 10")
+    end
+  end
+
+  describe "session actions middleware" do
+    around do |example|
+      original = ENV.fetch("RAILS_ENV", nil)
+      ENV["RAILS_ENV"] = "development"
+      example.run
+    ensure
+      if original
+        ENV["RAILS_ENV"] = original
+      else
+        ENV.delete("RAILS_ENV")
+      end
+    end
+
+    it "clears stored session logs" do
+      Bugsage::Store.add(
+        Bugsage::Suggestion.new(
+          issue: "NoMethodError",
+          location: "app.rb:1",
+          root_cause: "nil receiver",
+          fixes: ["Add nil guard"],
+          confidence: 90
+        )
+      )
+
+      env = {
+        "REQUEST_METHOD" => "POST",
+        "PATH_INFO" => "/bugsage/clear",
+        "HTTP_ACCEPT" => "application/json",
+        "rack.input" => StringIO.new("{}")
+      }
+
+      status, _headers, body = Bugsage::Middleware.new(->(_env) { [404, {}, []] }).call(env)
+      payload = JSON.parse(body.join)
+
+      expect(status).to eq(200)
+      expect(payload["ok"]).to be true
+      expect(Bugsage::Store.all).to be_empty
+    end
+
+    it "applies a fix through the middleware endpoint" do
+      Dir.mktmpdir do |root|
+        file = File.join(root, "sample.rb")
+        File.write(file, "value = nil\nvalue.name\n")
+
+        env = {
+          "REQUEST_METHOD" => "POST",
+          "PATH_INFO" => "/bugsage/apply-fix",
+          "rack.input" => StringIO.new({
+            location: "#{file}:2",
+            fix: "Guard against nil before calling name"
+          }.to_json)
+        }
+
+        status, _headers, body = Bugsage::Middleware.new(->(_env) { [404, {}, []] }).call(env)
+        payload = JSON.parse(body.join)
+
+        expect(status).to eq(200)
+        expect(payload["ok"]).to be true
+        expect(File.read(file)).to include("# BUGSAGE: Guard against nil before calling name")
+      end
     end
   end
 end
