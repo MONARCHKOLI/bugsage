@@ -104,6 +104,7 @@ module Bugsage
     def extract_body(body)
       return Array(body) unless body.respond_to?(:each)
 
+      # Prefer each over map: ActionDispatch::Response::RackBody implements each only.
       parts = []
       body.each { |part| parts << part }
       parts
@@ -145,49 +146,7 @@ module Bugsage
     end
 
     def rails_context(env)
-      return {} unless env.is_a?(Hash)
-
-      {
-        Bugsage.t("context.request_method") => env["REQUEST_METHOD"],
-        Bugsage.t("context.path") => env["PATH_INFO"],
-        Bugsage.t("context.query_string") => env["QUERY_STRING"],
-        Bugsage.t("context.host") => env["HTTP_HOST"] || env["SERVER_NAME"],
-        Bugsage.t("context.request_id") => env["action_dispatch.request_id"] || env["HTTP_X_REQUEST_ID"],
-        Bugsage.t("context.controller") => path_parameter_value(env, "controller"),
-        Bugsage.t("context.action") => path_parameter_value(env, "action"),
-        Bugsage.t("context.path_parameters") => path_parameters(env),
-        Bugsage.t("context.request_parameters") => request_parameters(env),
-        Bugsage.t("context.query_parameters") => query_parameters(env),
-        Bugsage.t("context.form_parameters") => form_parameters(env),
-        Bugsage.t("context.user_agent") => env["HTTP_USER_AGENT"]
-      }.compact.reject { |_, value| blank?(value) }
-    end
-
-    def path_parameter_value(env, key)
-      params = path_parameters(env)
-      return nil unless params.is_a?(Hash)
-
-      params[key.to_s] || params[key.to_sym]
-    end
-
-    def path_parameters(env)
-      env["action_dispatch.request.path_parameters"]
-    end
-
-    def request_parameters(env)
-      env["action_dispatch.request.parameters"]
-    end
-
-    def query_parameters(env)
-      env["action_dispatch.request.query_parameters"]
-    end
-
-    def form_parameters(env)
-      env["action_dispatch.request.form_parameters"]
-    end
-
-    def blank?(value)
-      value.respond_to?(:empty?) ? value.empty? : value.nil? || value == ""
+      RequestContext.from_env(env)
     end
   end
 end

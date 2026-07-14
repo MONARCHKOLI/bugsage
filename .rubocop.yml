@@ -63,6 +63,7 @@ Metrics/AbcSize:
     - lib/bugsage/middleware.rb
     - lib/bugsage/page_actions.rb
     - lib/bugsage/fix_applicator.rb
+    - lib/bugsage/request_context.rb
 
 Metrics/CyclomaticComplexity:
   Max: 12
@@ -95,5 +96,6 @@ Lint/UnusedMethodArgument:
   Exclude:
     - spec/**/*
 
-Lint/RescueException:
-  Enabled: false
+Style/MapIntoArray:
+  Exclude:
+    - lib/bugsage/middleware.rb

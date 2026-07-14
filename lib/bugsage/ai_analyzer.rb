@@ -64,12 +64,7 @@ module Bugsage
     end
 
     def build_client
-      case @config.resolved_ai_provider
-      when :cursor
-        CursorClient.new(config: @config)
-      else
-        OpenAiClient.new(config: @config)
-      end
+      AiSupport.build_client(@config)
     end
 
     def build_prompt(suggestion, exception, context)
@@ -140,20 +135,11 @@ module Bugsage
     end
 
     def extract_json(response)
-      stripped = response.to_s.strip
-      stripped = stripped.sub(/\A.*?```(?:json)?\s*/im, "").sub(/\s*```.*\z/m, "") if stripped.include?("```")
-
-      match = stripped.match(/\{.*\}/m)
-      match ? match[0] : stripped
+      AiSupport.extract_json(response)
     end
 
     def log_failure(error)
-      message = "[BugSage] AI enhancement failed: #{error.class}: #{error.message}"
-      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-        Rails.logger.warn(message)
-      else
-        warn(message)
-      end
+      AiSupport.log_failure("AI enhancement failed", error)
     end
   end
 end

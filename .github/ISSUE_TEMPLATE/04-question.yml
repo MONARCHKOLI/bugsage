@@ -1,0 +1,68 @@
+name: Question
+description: Ask a question about using or contributing to BugSage.
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Prefer docs first when possible:
+
+        - [GettingStarted](https://github.com/MONARCHKOLI/bugsage/blob/master/docs/GettingStarted.md)
+        - [Configuration](https://github.com/MONARCHKOLI/bugsage/blob/master/docs/Configuration.md)
+        - [AI](https://github.com/MONARCHKOLI/bugsage/blob/master/docs/AI.md)
+        - [Troubleshooting](https://github.com/MONARCHKOLI/bugsage/blob/master/docs/Troubleshooting.md)
+
+        **Security issues:** do not ask here — use [private security advisories](https://github.com/MONARCHKOLI/bugsage/security/advisories/new).
+
+  - type: checkboxes
+    id: before
+    attributes:
+      label: Before asking
+      options:
+        - label: I checked the docs and troubleshooting guide
+          required: true
+        - label: I searched existing issues for a similar question
+          required: true
+
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - Installation / setup
+        - Configuration
+        - Error page / dashboard
+        - HTTP error capture
+        - AI (OpenAI / Cursor)
+        - Apply fix / code patches
+        - Contributing / development
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      placeholder: How do I disable HTTP error capture while keeping exception capture?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Versions, environment, and what you already tried (redact secrets).
+      placeholder: |
+        BugSage: 0.2.0
+        Ruby: 3.4.x
+        Rails: 8.x
+        Env: development
+        Tried: config.bugsage.capture_http_errors = false
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to achieve?
+      placeholder: Capture exceptions in the dashboard but leave API 400 responses untouched.

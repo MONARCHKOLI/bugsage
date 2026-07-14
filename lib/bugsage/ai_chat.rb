@@ -4,6 +4,8 @@ require "json"
 
 module Bugsage
   class AiChat
+    extend JsonEndpoint
+
     ENDPOINT = "/bugsage/ai-chat"
 
     SYSTEM_PROMPT = <<~PROMPT
@@ -152,23 +154,11 @@ module Bugsage
     end
 
     def self.extract_json(response)
-      stripped = response.to_s.strip
-      stripped = stripped.sub(/\A.*?```(?:json)?\s*/im, "").sub(/\s*```.*\z/m, "") if stripped.include?("```")
-
-      match = stripped.match(/\{.*\}/m)
-      match ? match[0] : stripped
+      AiSupport.extract_json(response)
     end
 
     def self.build_client
-      config = Bugsage.configuration
-      return config.ai_client if config.ai_client
-
-      case config.resolved_ai_provider
-      when :cursor
-        CursorClient.new(config: config)
-      else
-        OpenAiClient.new(config: config)
-      end
+      AiSupport.build_client(Bugsage.configuration)
     end
 
     def self.normalize_history(history)
@@ -392,36 +382,7 @@ module Bugsage
     end
 
     def self.log_failure(error)
-      message = "[BugSage] AI chat failed: #{error.class}: #{error.message}"
-      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-        Rails.logger.warn(message)
-      else
-        warn(message)
-      end
-    end
-
-    def self.error_response(message)
-      { ok: false, error: message.to_s }
-    end
-
-    def self.parse_request_body(env)
-      body = env["rack.input"]
-      raw = body.respond_to?(:read) ? body.read : body.to_s
-      body.rewind if body.respond_to?(:rewind)
-
-      return {} if raw.to_s.strip.empty?
-
-      JSON.parse(raw)
-    rescue JSON::ParserError
-      {}
-    end
-
-    def self.json_response(payload)
-      [200, { "Content-Type" => "application/json" }, [JSON.generate(payload)]]
-    end
-
-    def self.not_found
-      [404, { "Content-Type" => "text/plain" }, [Bugsage.t("common.not_found")]]
+      AiSupport.log_failure("AI chat failed", error)
     end
   end
 end

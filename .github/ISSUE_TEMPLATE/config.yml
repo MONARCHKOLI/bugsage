@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/MONARCHKOLI/bugsage/security/advisories/new
+    about: Please report security issues privately. Do not open a public issue. See SECURITY.md.
+  - name: Documentation
+    url: https://github.com/MONARCHKOLI/bugsage/tree/master/docs
+    about: Getting started, configuration, AI, and troubleshooting guides.
+  - name: Architecture & roadmap
+    url: https://github.com/MONARCHKOLI/bugsage/blob/master/ARCHITECTURE.md
+    about: System design overview. See also ROADMAP.md for planned work.
+  - name: Contributing guide
+    url: https://github.com/MONARCHKOLI/bugsage/blob/master/CONTRIBUTING.md
+    about: Development setup, coding standards, and pull request expectations.

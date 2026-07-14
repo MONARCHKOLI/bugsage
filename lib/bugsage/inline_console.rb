@@ -4,6 +4,8 @@ require "json"
 
 module Bugsage
   class InlineConsole
+    extend JsonEndpoint
+
     def self.evaluate(code)
       return error_response("Console is not available for this error.") unless ConsoleContext.available?
 
@@ -219,26 +221,6 @@ module Bugsage
 
     def self.format_exception(exception)
       "#{exception.class}: #{exception.message}"
-    end
-
-    def self.parse_request_body(env)
-      body = env["rack.input"]
-      raw = body.respond_to?(:read) ? body.read : body.to_s
-      body.rewind if body.respond_to?(:rewind)
-
-      return {} if raw.to_s.strip.empty?
-
-      JSON.parse(raw)
-    rescue JSON::ParserError
-      {}
-    end
-
-    def self.json_response(payload)
-      [200, { "Content-Type" => "application/json" }, [JSON.generate(payload)]]
-    end
-
-    def self.not_found
-      [404, { "Content-Type" => "text/plain" }, ["Not Found"]]
     end
   end
 end

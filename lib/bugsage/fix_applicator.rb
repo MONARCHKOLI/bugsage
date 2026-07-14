@@ -4,6 +4,8 @@ require "json"
 
 module Bugsage
   class FixApplicator
+    extend JsonEndpoint
+
     ENDPOINT = "/bugsage/apply-fix"
 
     def self.handle_request(env)
@@ -98,33 +100,8 @@ module Bugsage
       %w[development test].include?(env.to_s)
     end
 
-    def self.error_response(message)
-      { ok: false, error: message.to_s }
-    end
-
-    def self.parse_request_body(env)
-      body = env["rack.input"]
-      raw = body.respond_to?(:read) ? body.read : body.to_s
-      body.rewind if body.respond_to?(:rewind)
-
-      return {} if raw.to_s.strip.empty?
-
-      JSON.parse(raw)
-    rescue JSON::ParserError
-      {}
-    end
-
-    def self.json_response(payload)
-      [200, { "Content-Type" => "application/json" }, [JSON.generate(payload)]]
-    end
-
-    def self.not_found
-      [404, { "Content-Type" => "text/plain" }, [Bugsage.t("common.not_found")]]
-    end
-
     def self.forbidden
-      [403, { "Content-Type" => "application/json" },
-       [JSON.generate(error_response(Bugsage.t("errors.fix_only_in_dev_test")))]]
+      json_response(error_response(Bugsage.t("errors.fix_only_in_dev_test")), status: 403)
     end
   end
 end

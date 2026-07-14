@@ -1,0 +1,140 @@
+name: Bug Report
+description: Report unexpected BugSage behavior in a Rails app or in the gem itself.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve BugSage.
+
+        **Security issues:** do not use this form. Report privately via [Security Advisories](https://github.com/MONARCHKOLI/bugsage/security/advisories/new) or see [SECURITY.md](https://github.com/MONARCHKOLI/bugsage/blob/master/SECURITY.md).
+
+  - type: checkboxes
+    id: before
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for duplicates
+          required: true
+        - label: I checked [docs/Troubleshooting.md](https://github.com/MONARCHKOLI/bugsage/blob/master/docs/Troubleshooting.md)
+          required: true
+        - label: This is not a security vulnerability
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What went wrong?
+      placeholder: BugSage crashed when extracting an API response body...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps another developer can follow.
+      placeholder: |
+        1. Add `gem "bugsage"` to a Rails app
+        2. Start `bin/rails server`
+        3. POST to `/api/v1/auth/login` with...
+        4. Visit `/bugsage`
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: The API response is returned and (optionally) captured in `/bugsage`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: A NoMethodError is raised from Middleware#extract_body...
+    validations:
+      required: true
+
+  - type: input
+    id: bugsage_version
+    attributes:
+      label: BugSage version
+      description: Gem version (for example `0.2.0`) or Git commit SHA if using GitHub/path.
+      placeholder: 0.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: ruby_version
+    attributes:
+      label: Ruby version
+      placeholder: 3.4.7
+    validations:
+      required: true
+
+  - type: input
+    id: rails_version
+    attributes:
+      label: Rails version
+      placeholder: 8.0.2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - development
+        - test
+        - staging
+        - production
+        - other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: features
+    attributes:
+      label: Features involved (if known)
+      options:
+        - label: Error page
+        - label: Session dashboard (`/bugsage`)
+        - label: HTTP error capture (4xx/5xx)
+        - label: Inline console
+        - label: AI Quick Fix / Chat
+        - label: Apply fix / code patch
+        - label: CLI / installer
+        - label: Other / unsure
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack traces
+      description: Paste relevant output. Redact API keys, tokens, and personal data.
+      render: text
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: Initializer snippets or env vars (no secrets).
+      placeholder: |
+        config.bugsage.capture_http_errors = true
+        # OPENAI_API_KEY / CURSOR_API_KEY set? yes/no
+      render: ruby
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, related PRs, or anything else that helps.

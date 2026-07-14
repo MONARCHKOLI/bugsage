@@ -1322,12 +1322,11 @@ RSpec.describe Bugsage do
           @parts = parts
         end
 
-        def each
-          @parts.each { |part| yield part }
+        def each(&block)
+          @parts.each(&block)
         end
 
-        def close
-        end
+        def close; end
       end
 
       api_app = lambda do |env|

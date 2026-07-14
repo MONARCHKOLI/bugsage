@@ -1,0 +1,174 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUNDLE_JOBS: 4
+  BUNDLE_RETRY: 3
+
+jobs:
+  test:
+    name: Test (Ruby ${{ matrix.ruby }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Minimum required and current stable (see bugsage.gemspec)
+        ruby:
+          - "3.2"
+          - "3.3"
+          - "3.4"
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Run RSpec
+        run: bundle exec rspec --format progress
+
+  lint:
+    name: RuboCop
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Run RuboCop
+        run: bundle exec rubocop --config .rubocop.yml --force-exclusion --format simple
+
+  audit:
+    name: Bundle audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Audit dependencies
+        run: |
+          set -euo pipefail
+          db="${RUNNER_TEMP}/ruby-advisory-db"
+          bundle exec bundle-audit check --update --database "${db}"
+
+  gem:
+    name: Build & validate gem
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Validate gemspec
+        run: |
+          set -euo pipefail
+          ruby <<'RUBY'
+          # frozen_string_literal: true
+
+          spec = Gem::Specification.load("bugsage.gemspec")
+          abort "Could not load bugsage.gemspec" unless spec
+
+          # Emit RubyGems packaging validation (warnings printed to stderr).
+          spec.validate
+
+          missing = []
+          missing << "name" if spec.name.to_s.empty?
+          missing << "version" if spec.version.nil?
+          missing << "summary" if spec.summary.to_s.empty?
+          missing << "homepage" if spec.homepage.to_s.empty?
+          missing << "license" if spec.licenses.empty? && spec.license.to_s.empty?
+          missing << "files" if spec.files.empty?
+          missing << "authors" if Array(spec.authors).empty?
+          abort "Gemspec missing required fields: #{missing.join(", ")}" unless missing.empty?
+
+          required_metadata = %w[
+            homepage_uri
+            source_code_uri
+            changelog_uri
+            allowed_push_host
+          ]
+          absent = required_metadata.reject { |key| spec.metadata[key].to_s.strip.bytesize.positive? }
+          abort "Gemspec missing metadata: #{absent.join(", ")}" unless absent.empty?
+
+          puts "Gemspec OK: #{spec.full_name}"
+          puts "Files: #{spec.files.size}"
+          puts "Executables: #{spec.executables.join(", ")}"
+          puts "Runtime deps: #{spec.runtime_dependencies.map(&:to_s).join(", ")}"
+          RUBY
+
+      - name: Build gem
+        run: bundle exec rake build
+
+      - name: Verify packaged gem
+        run: |
+          set -euo pipefail
+          gem_path="$(ls -1 pkg/bugsage-*.gem | head -n 1)"
+          echo "Built: ${gem_path}"
+
+          ruby <<RUBY
+          # frozen_string_literal: true
+          require "rubygems/package"
+
+          path = Dir["pkg/bugsage-*.gem"].fetch(0)
+          package = Gem::Package.new(path)
+          package.verify
+
+          spec = package.spec
+          abort "Packaged gem has no files" if spec.files.empty?
+          abort "Missing lib/bugsage.rb in package" unless spec.files.include?("lib/bugsage.rb")
+          abort "Missing exe/bugsage in package" unless spec.files.include?("exe/bugsage")
+          abort "Unexpected executable list" unless spec.executables == ["bugsage"]
+
+          puts "Package OK: #{spec.full_name} (#{spec.files.size} files, verified)"
+          RUBY
+
+          gem unpack "${gem_path}" --target tmp/gem-unpack
+          test -f tmp/gem-unpack/*/lib/bugsage.rb
+          test -x tmp/gem-unpack/*/exe/bugsage || test -f tmp/gem-unpack/*/exe/bugsage

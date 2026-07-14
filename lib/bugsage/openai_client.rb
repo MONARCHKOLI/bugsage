@@ -11,53 +11,21 @@ module Bugsage
     end
 
     def complete(system_prompt:, user_prompt:)
-      validate_api_key!
-
-      uri = URI.join(api_base, "chat/completions")
-      request = Net::HTTP::Post.new(uri)
-      request["Authorization"] = "Bearer #{@config.resolved_openai_api_key}"
-      request["Content-Type"] = "application/json"
-      request.body = JSON.generate(
-        model: @config.openai_model,
-        response_format: { type: "json_object" },
+      post_chat(
         temperature: 0.2,
+        response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system_prompt },
           { role: "user", content: user_prompt }
         ]
       )
-
-      response = http_request(uri, request)
-      raise Error, error_message_for(response) unless response.is_a?(Net::HTTPSuccess)
-
-      payload = JSON.parse(response.body)
-      content = payload.dig("choices", 0, "message", "content")
-      raise Error, "OpenAI response did not include message content" if content.to_s.strip.empty?
-
-      content
     end
 
     def chat(system_prompt:, messages:)
-      validate_api_key!
-
-      uri = URI.join(api_base, "chat/completions")
-      request = Net::HTTP::Post.new(uri)
-      request["Authorization"] = "Bearer #{@config.resolved_openai_api_key}"
-      request["Content-Type"] = "application/json"
-      request.body = JSON.generate(
-        model: @config.openai_model,
+      post_chat(
         temperature: 0.3,
         messages: [{ role: "system", content: system_prompt }] + messages
       )
-
-      response = http_request(uri, request)
-      raise Error, error_message_for(response) unless response.is_a?(Net::HTTPSuccess)
-
-      payload = JSON.parse(response.body)
-      content = payload.dig("choices", 0, "message", "content")
-      raise Error, "OpenAI response did not include message content" if content.to_s.strip.empty?
-
-      content
     end
 
     def http_request(uri, request)
@@ -73,6 +41,32 @@ module Bugsage
     end
 
     private
+
+    def post_chat(messages:, temperature:, response_format: nil)
+      validate_api_key!
+
+      uri = URI.join(api_base, "chat/completions")
+      request = Net::HTTP::Post.new(uri)
+      request["Authorization"] = "Bearer #{@config.resolved_openai_api_key}"
+      request["Content-Type"] = "application/json"
+
+      body = {
+        model: @config.openai_model,
+        temperature: temperature,
+        messages: messages
+      }
+      body[:response_format] = response_format if response_format
+      request.body = JSON.generate(body)
+
+      response = http_request(uri, request)
+      raise Error, error_message_for(response) unless response.is_a?(Net::HTTPSuccess)
+
+      payload = JSON.parse(response.body)
+      content = payload.dig("choices", 0, "message", "content")
+      raise Error, "OpenAI response did not include message content" if content.to_s.strip.empty?
+
+      content
+    end
 
     def api_base
       base = @config.openai_api_base.to_s

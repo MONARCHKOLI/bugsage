@@ -1,4 +1,10 @@
+<p align="center">
+  <img src="docs/images/BugSage_Logo.png" alt="BugSage — AI-powered debugging assistant for Ruby on Rails" width="420">
+</p>
+
 # BugSage
+
+[![CI](https://github.com/MONARCHKOLI/bugsage/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/MONARCHKOLI/bugsage/actions/workflows/ci.yml)
 
 BugSage is a Ruby gem for Ruby on Rails applications that helps developers understand exceptions faster. Instead of showing only a raw stack trace, BugSage classifies the error, explains the likely root cause, and suggests actionable fixes.
 
@@ -14,6 +20,16 @@ It uses deterministic rules first, with optional AI-powered refinement when enab
 - Displays Rails request context such as path, method, controller, action, and parameters
 - Provides a session dashboard at `/bugsage` in development
 - Lets you chat with AI about a fix and apply refined code patches directly to your codebase
+
+## Screenshots
+
+![Exception page — NoMethodError on /boom](docs/images/NoMethodError2.png)
+
+![Dashboard — NoMethodError session detail](docs/images/NoMethodError.png)
+
+![Dashboard — HTTP 400 Response](docs/images/BadRequest.png)
+
+![API JSON response still returned for /bad_request](docs/images/BadRequest2.png)
 
 ## Installation
 
@@ -308,9 +324,19 @@ bundle install
 bundle exec rspec
 ```
 
+Try the minimal demo app:
+
+```bash
+cd examples/sample_app
+bundle install
+bin/rails server
+```
+
+See [examples/sample_app/README.md](examples/sample_app/README.md).
+
 ## Contributing
 
-Bug reports and pull requests are welcome.
+Bug reports and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines, [ARCHITECTURE.md](ARCHITECTURE.md) for system design, and [ROADMAP.md](ROADMAP.md) for planned work.
 
 ## License
 

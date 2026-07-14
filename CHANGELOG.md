@@ -2,6 +2,8 @@
 
 ## [0.2.0] - 2026-07-13
 
+GitHub release notes: [docs/releases/v0.2.0.md](docs/releases/v0.2.0.md)
+
 ### Added
 - Zero-config Rails setup via `Bugsage::AutoConfigurator` on boot
 - `rails generate bugsage:install` generator and `bundle exec bugsage install` CLI

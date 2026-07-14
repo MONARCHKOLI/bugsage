@@ -3,9 +3,12 @@
 /_yardoc/
 /coverage/
 /doc/
-/pkg/
 /spec/reports/
 /tmp/
+
+# Built gem artifacts (build with `gem build`; distribute via RubyGems / GitHub Releases)
+*.gem
+pkg/
 
 # rspec failure tracking
 .rspec_status

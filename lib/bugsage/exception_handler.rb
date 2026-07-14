@@ -47,7 +47,7 @@ module Bugsage
     end
 
     def request_context(env)
-      Middleware.new(nil).send(:rails_context, env)
+      RequestContext.from_env(env)
     end
 
     def status_for(exception)
