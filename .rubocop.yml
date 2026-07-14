@@ -4,7 +4,12 @@ AllCops:
   SuggestExtensions: false
   Exclude:
     - Gemfile.lock
-
+    - vendor/**/*
+    - pkg/**/*
+    - tmp/**/*
+    - docs/**/*
+    - examples/**/*
+    - scripts/**/*
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 
