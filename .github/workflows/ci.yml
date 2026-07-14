@@ -64,7 +64,7 @@ jobs:
           bundler-cache: true
 
       - name: Run RuboCop
-        run: bundle exec rubocop --config .rubocop.yml --force-exclusion --format simple -- lib spec exe bugsage.gemspec Rakefile
+        run: bundle exec rubocop --config .rubocop.yml --force-exclusion --format simple --cache false
 
   audit:
     name: Bundle audit
