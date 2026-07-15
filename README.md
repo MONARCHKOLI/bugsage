@@ -158,6 +158,7 @@ end
 | `cursor_api_base` | `https://api.cursor.com` | Cursor API base URL |
 | `ai_timeout` | `15` (`90` minimum for Cursor) | Request/poll timeout in seconds |
 | `ai_client` | `nil` | Custom AI client (for testing or alternate providers) |
+| `ignored_paths` | `["/favicon.ico", ...]` | Paths (strings or regexps) excluded from error capture |
 
 ### Default behavior by environment
 

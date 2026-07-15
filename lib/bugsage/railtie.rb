@@ -41,6 +41,7 @@ module Bugsage
       ActionDispatch::DebugExceptions.register_interceptor do |request, exception|
         next unless Bugsage.configuration.enabled?
         next unless Bugsage.configuration.capture_errors?
+        next if Bugsage.configuration.ignored_path?(request.env["PATH_INFO"])
 
         Bugsage::ExceptionHandler.store_exception(request.env, exception)
       end

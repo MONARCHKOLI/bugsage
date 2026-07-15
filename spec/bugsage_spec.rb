@@ -476,6 +476,47 @@ RSpec.describe Bugsage do
       expect(config.ai_enabled).to be_nil
       expect(config.ai_enabled?("development")).to be false
     end
+
+    describe "#ignored_path?" do
+      it "ignores /favicon.ico by default" do
+        config = described_class.new
+
+        expect(config.ignored_path?("/favicon.ico")).to be true
+      end
+
+      it "ignores asset pipeline paths by default" do
+        config = described_class.new
+
+        expect(config.ignored_path?("/assets/application.js")).to be true
+        expect(config.ignored_path?("/packs/main-abc123.js")).to be true
+        expect(config.ignored_path?("/vite/assets/app.js")).to be true
+      end
+
+      it "does not ignore normal application paths" do
+        config = described_class.new
+
+        expect(config.ignored_path?("/users")).to be false
+        expect(config.ignored_path?("/boom")).to be false
+        expect(config.ignored_path?("/")).to be false
+      end
+
+      it "accepts custom string paths" do
+        config = described_class.new
+        config.ignored_paths = ["/health", "/robots.txt"]
+
+        expect(config.ignored_path?("/health")).to be true
+        expect(config.ignored_path?("/robots.txt")).to be true
+        expect(config.ignored_path?("/favicon.ico")).to be false
+      end
+
+      it "accepts custom regex patterns" do
+        config = described_class.new
+        config.ignored_paths = [%r{\A/api/healthz}]
+
+        expect(config.ignored_path?("/api/healthz")).to be true
+        expect(config.ignored_path?("/api/users")).to be false
+      end
+    end
   end
 
   describe Bugsage::AutoConfigurator do
@@ -926,6 +967,37 @@ RSpec.describe Bugsage do
       expect(response[0]).to eq(404)
       expect(html).to include("BugSage caught")
       expect(Bugsage::Store.all.first[:issue]).to eq("ActionController::RoutingError")
+    end
+
+    it "does not capture routing errors for ignored paths like /favicon.ico" do
+      rails_app = ->(_env) { [404, { "X-Cascade" => "pass" }, []] }
+      favicon_env = {
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/favicon.ico",
+        "HTTP_HOST" => "example.test"
+      }
+
+      Bugsage::Store.clear!
+      response = described_class.new(rails_app).call(favicon_env)
+
+      expect(response[0]).to eq(404)
+      expect(response[2].join).not_to include("BugSage caught")
+      expect(Bugsage::Store.all).to be_empty
+    end
+
+    it "does not capture routing errors for asset pipeline paths" do
+      rails_app = ->(_env) { [404, { "X-Cascade" => "pass" }, []] }
+      asset_env = {
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/assets/missing-file.js",
+        "HTTP_HOST" => "example.test"
+      }
+
+      Bugsage::Store.clear!
+      response = described_class.new(rails_app).call(asset_env)
+
+      expect(response[0]).to eq(404)
+      expect(Bugsage::Store.all).to be_empty
     end
 
     it "stores errors without rendering the error page in test mode" do

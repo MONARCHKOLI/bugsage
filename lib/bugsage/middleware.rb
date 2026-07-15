@@ -75,6 +75,7 @@ module Bugsage
 
     def capture_routing_error(env, headers)
       return unless cascade_pass?(headers)
+      return if Bugsage.configuration.ignored_path?(env["PATH_INFO"])
 
       exception = routing_error_for(env)
       capture_exception(env, exception)
@@ -113,6 +114,7 @@ module Bugsage
     def capture_http_error(env, status, body)
       config = Bugsage.configuration
       return unless config.capture_http_errors?
+      return if config.ignored_path?(env["PATH_INFO"])
       return unless HttpErrorCapture.capture?(status, env)
 
       ExceptionHandler.store_http_error(env, status, body)

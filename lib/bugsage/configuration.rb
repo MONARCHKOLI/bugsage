@@ -10,6 +10,7 @@ module Bugsage
                   :show_inline_console,
                   :capture_errors,
                   :capture_http_errors,
+                  :ignored_paths,
                   :ai_enabled,
                   :ai_provider,
                   :openai_api_key,
@@ -29,6 +30,7 @@ module Bugsage
       @show_inline_console = nil
       @capture_errors = true
       @capture_http_errors = true
+      @ignored_paths = default_ignored_paths
       @ai_enabled = nil
       @ai_provider = nil
       @openai_api_key = nil
@@ -74,6 +76,14 @@ module Bugsage
       return false unless capture_errors?(environment)
 
       capture_http_errors != false
+    end
+
+    def ignored_path?(path)
+      return false if path.nil?
+
+      Array(ignored_paths).any? do |pattern|
+        pattern.is_a?(Regexp) ? pattern.match?(path) : path == pattern.to_s
+      end
     end
 
     def ai_enabled?(environment = current_environment)
@@ -144,6 +154,17 @@ module Bugsage
 
     def environment_names
       Array(enabled_environments).map(&:to_s)
+    end
+
+    def default_ignored_paths
+      [
+        "/favicon.ico",
+        "/apple-touch-icon.png",
+        "/apple-touch-icon-precomposed.png",
+        %r{\A/assets/},
+        %r{\A/packs/},
+        %r{\A/vite/}
+      ]
     end
   end
 end

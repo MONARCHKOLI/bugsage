@@ -67,6 +67,7 @@ Restart the Rails server after changing configuration or environment variables.
 | `cursor_api_base` | `https://api.cursor.com` | Cursor API base URL |
 | `ai_timeout` | `15` (minimum `90` for Cursor) | Request/poll timeout in seconds |
 | `ai_client` | `nil` | Custom AI client for tests or alternate providers |
+| `ignored_paths` | `["/favicon.ico", "/apple-touch-icon.png", %r{\A/assets/}, ...]` | Paths (strings or regexps) that BugSage will never capture or display |
 | `fallback_exceptions_app` | `nil` | Optional fallback Rack app for routing errors |
 
 ## Default behavior by environment
@@ -111,6 +112,22 @@ end
 ```ruby
 Rails.application.configure do |config|
   config.bugsage.capture_http_errors = false
+end
+```
+
+### Customize ignored paths
+
+By default BugSage skips `/favicon.ico`, Apple touch icons, and asset-pipeline paths (`/assets/`, `/packs/`, `/vite/`). Override to add your own:
+
+```ruby
+Bugsage.configure do |config|
+  config.ignored_paths = [
+    "/favicon.ico",
+    "/robots.txt",
+    "/health",
+    %r{\A/assets/},
+    %r{\A/packs/}
+  ]
 end
 ```
 
