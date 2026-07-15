@@ -37,7 +37,11 @@ module Bugsage
       context = request_context(env)
       ai_error = nil
 
-      Store.add(suggestion, context, ai_error: ai_error, exception: exception) if config.capture_errors?
+      unless env["bugsage.captured"]
+        Store.add(suggestion, context, ai_error: ai_error, exception: exception) if config.capture_errors?
+        env["bugsage.captured"] = true
+      end
+
       ConsoleContext.set(exception: exception, context: context) if config.show_inline_console?
       AiContext.set(exception: exception, suggestion: suggestion, context: context) if config.ai_configured?
 

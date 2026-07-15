@@ -44,7 +44,6 @@ module Bugsage
         next if Bugsage.configuration.ignored_path?(request.env["PATH_INFO"])
 
         Bugsage::ExceptionHandler.store_exception(request.env, exception)
-        request.env["bugsage.captured"] = true
       end
     end
   end
