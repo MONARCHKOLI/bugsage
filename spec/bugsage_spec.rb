@@ -1023,6 +1023,28 @@ RSpec.describe Bugsage do
 
       expect(Bugsage::Store.all.first[:issue]).to eq("NoMethodError")
     end
+
+    it "does not store duplicate entries when env is already marked as captured" do
+      Bugsage.configure do |config|
+        config.show_error_page = false
+        config.capture_errors = true
+      end
+
+      app = lambda do |env|
+        env["action_dispatch.exception"] = ActiveRecord::RecordNotFound.new("Couldn't find User with 'id'=9999")
+        env["bugsage.captured"] = true
+        [404, { "Content-Type" => "text/html" }, ["Not Found"]]
+      end
+
+      Bugsage::Store.clear!
+      described_class.new(app).call(
+        "REQUEST_METHOD" => "GET",
+        "PATH_INFO" => "/users/9999",
+        "HTTP_HOST" => "example.test"
+      )
+
+      expect(Bugsage::Store.all.size).to eq(0)
+    end
   end
 
   describe "integration capture" do

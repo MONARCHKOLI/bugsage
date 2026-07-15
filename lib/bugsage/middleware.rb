@@ -130,8 +130,10 @@ module Bugsage
       return ExceptionHandler.render_response(env, candidate) if config.show_error_page?
 
       return unless config.capture_errors?
+      return :stored if env["bugsage.captured"] && exception.nil?
 
       ExceptionHandler.store_exception(env, candidate)
+      env["bugsage.captured"] = true
       :stored
     end
 

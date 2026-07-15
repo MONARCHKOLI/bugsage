@@ -9,12 +9,13 @@ module Bugsage
     def call(env)
       config = Bugsage.configuration
 
-      unless config.ignored_path?(env["PATH_INFO"])
+      unless config.ignored_path?(env["PATH_INFO"]) || env["bugsage.captured"]
         if config.enabled? && config.show_error_page?
           rendered = ExceptionHandler.render_response(env)
           return rendered if rendered
         elsif config.enabled? && config.capture_errors?
           ExceptionHandler.store_exception(env)
+          env["bugsage.captured"] = true
         end
       end
 
